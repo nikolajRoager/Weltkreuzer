@@ -14,10 +14,7 @@ public class Game1 : Core
 
     protected override void Initialize()
     {
-        // TODO: Add your initialization logic here
-
         base.Initialize();
-        
         
         // Start the game with the title scene.
         ChangeScene(new TitleScreen());
@@ -25,6 +22,5 @@ public class Game1 : Core
 
     protected override void LoadContent()
     {
-        // TODO: use this.Content to load your game content here
     }
 }

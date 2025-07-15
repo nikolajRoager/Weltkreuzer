@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using MatrosEngine.Particles;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -52,9 +54,23 @@ public class Ship
     /// Should be -1 (turn to port) 0 (dead ahead) or 1 (turn to starboard)
     /// </summary>
     public int Rudder { get; set; } = 0;
-    
-    
 
+
+    /// <summary>
+    /// Locations of the funnels which may spawn particles
+    /// </summary>
+    public List<Vector2> FunnelLocations;
+
+
+
+    /// <summary>
+    /// Number of seconds betwixt puffs of smoke at full power
+    /// </summary>
+    public float _funnnelSmokeTimerMax;
+    /// <summary>
+    /// Number of seconds until the next puff
+    /// </summary>
+    private float _funnelSmokeTimer;
 
     public bool AddPower(bool Up)
     {
@@ -86,19 +102,34 @@ public class Ship
             }
         }
     }
-    
 
-    public Ship(Texture2D texture, Vector2 position, float speed, float rotation=Single.Pi*0.25f)
+
+    private Texture2D DEBUG_DOT;
+    
+    public Ship(Texture2D texture, Vector2 position, float speed, Texture2D DBD, float rotation=0)
     {
         Texture = texture;
         Position = position;
         Velocity = new Vector2(speed, 0);
         
         Rotation = rotation;
-        Omega = 0.4f;
+        Omega = 0.0f;
         
         Forward = new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
         Port = new Vector2(-Forward.Y, Forward.X);
+
+        FunnelLocations = new ()
+        {
+            new Vector2(-2,0),
+            new Vector2(10,0),
+            new Vector2(24,0),
+        };
+        
+        _funnnelSmokeTimerMax=0.1;
+        _funnelSmokeTimer=_funnnelSmokeTimerMax;
+        
+        
+        DEBUG_DOT = DBD;
     }
 
     public void Update(GameTime time)
@@ -130,21 +161,45 @@ public class Ship
 
     }
 
+    /// <summary>
+    /// The ship may spawn smoke through its funnels
+    /// </summary>
+    /// <param name="particles"></param>
+    public void SpawnSmoke(ICollection<Particle> particles, GameTime time)
+    {
+        
+    }
+
     public void Draw(SpriteBatch spriteBatch)
     {
         spriteBatch.Draw(
-        
-        Texture,
-        Position, 
-        null,
-        Color.White,
-        Rotation,
-        Vector2.Zero, 
-        1f,
-        SpriteEffects.None,
-        0.0f
-        
+            Texture,
+            Position, 
+            null,
+            Color.White,
+            Rotation,
+            new Vector2(Texture.Width*0.5f, Texture.Height*0.5f), 
+            1f,
+            SpriteEffects.None,
+            0.0f
         );
+
+
+        foreach (var loc in FunnelLocations)
+        {
+            
+            spriteBatch.Draw(
+                DEBUG_DOT,
+                Position+loc.X*Forward+loc.Y*Port, 
+                null,
+                Color.White,
+                0,
+                new Vector2(DEBUG_DOT.Width*0.5f, DEBUG_DOT.Height*0.5f), 
+                1f,
+                SpriteEffects.None,
+                0.0f
+            );
+        }
     }
     
     
