@@ -1,6 +1,6 @@
 using Microsoft.Xna.Framework;
 
-namespace MonoGameLibrary.Input;
+namespace MatrosEngine.Input;
 
 public class InputManager
 {
@@ -17,22 +17,15 @@ public class InputManager
     /// <summary>
     /// Gets the state information of a gamepad.
     /// </summary>
-    public GamePadInfo[] GamePads { get; private set; }
 
     /// <summary>
     /// Creates a new InputManager.
     /// </summary>
-    /// <param name="game">The game this input manager belongs to.</param>
     public InputManager()
     {
         Keyboard = new KeyboardInfo();
         Mouse = new MouseInfo();
 
-        GamePads = new GamePadInfo[4];
-        for (int i = 0; i < 4; i++)
-        {
-            GamePads[i] = new GamePadInfo((PlayerIndex)i);
-        }
     }
     /// <summary>
     /// Updates the state information for the keyboard, mouse, and gamepad inputs.
@@ -42,10 +35,5 @@ public class InputManager
     {
         Keyboard.Update();
         Mouse.Update();
-
-        for (int i = 0; i < 4; i++)
-        {
-            GamePads[i].Update(gameTime);
-        }
     }
 }

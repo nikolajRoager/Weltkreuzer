@@ -1,4 +1,4 @@
-namespace MonoGameLibrary.Input;
+namespace MatrosEngine.Input;
 
 public enum MouseButton
 {
