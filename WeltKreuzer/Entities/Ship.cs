@@ -72,6 +72,13 @@ public class Ship
     /// </summary>
     private float _funnelSmokeTimer;
 
+    
+    public float _foamTimerMax;
+    private float _foamTimer;
+    
+    public List<Turret> Turrets { get; private set; } 
+    
+    
     public bool AddPower(bool Up)
     {
         Console.WriteLine(PowerLevel);
@@ -104,13 +111,43 @@ public class Ship
     }
 
 
-    private Texture2D DEBUG_DOT;
-    
-    public Ship(Texture2D texture, Vector2 position, float speed, Texture2D DBD, float rotation=0)
+    public void SetTarget(Vector2 target)
     {
+        foreach (var turret in Turrets)
+        {
+            turret.SetTarget(target,Position+turret.Position.X*Forward+turret.Position.Y*Port,Rotation);
+        }
+    }
+
+
+    
+    public Ship(Texture2D texture, Vector2 position, float speed, Turret turretTemplate,float rotation=0)
+    {
+        
+        
         Texture = texture;
         Position = position;
         Velocity = new Vector2(speed, 0);
+
+        Turrets = new List<Turret>()
+        {
+          new Turret(turretTemplate,new Vector2(-50,4),Single.Pi+0.5f,Single.Pi -1.0f),
+          new Turret(turretTemplate,new Vector2(-50,-2),Single.Pi+1.0f,Single.Pi-0.5f),
+          
+          new Turret(turretTemplate,new Vector2(-36,6),Single.Pi, Single.Pi-2),
+         new Turret(turretTemplate,new Vector2(-36,-6),Single.Pi+2,Single.Pi),
+          
+          new Turret(turretTemplate,new Vector2(0,7),Single.Pi*0.7f, Single.Pi*0.3f),
+          new Turret(turretTemplate,new Vector2(0,-7),-Single.Pi*0.3f, -Single.Pi*0.7f),
+          
+          new Turret(turretTemplate,new Vector2(36,6),2,0),
+          new Turret(turretTemplate,new Vector2(36,-6),0,-2),
+          
+          new Turret(turretTemplate,new Vector2(50,4),1,-0.5f),
+          new Turret(turretTemplate,new Vector2(50,-2),0.5f,-1),
+            
+        };
+        
         
         Rotation = rotation;
         Omega = 0.0f;
@@ -125,11 +162,12 @@ public class Ship
             new Vector2(24,0),
         };
         
-        _funnnelSmokeTimerMax=0.1;
+        _funnnelSmokeTimerMax=0.1f;
         _funnelSmokeTimer=_funnnelSmokeTimerMax;
         
+        _foamTimerMax=0.1f;
+        _foamTimer=_foamTimerMax;
         
-        DEBUG_DOT = DBD;
     }
 
     public void Update(GameTime time)
@@ -165,12 +203,46 @@ public class Ship
     /// The ship may spawn smoke through its funnels
     /// </summary>
     /// <param name="particles"></param>
-    public void SpawnSmoke(ICollection<Particle> particles, GameTime time)
+    public void SpawnSmoke(ICollection<Particle> particles, ParticleTemplate template, GameTime time)
     {
-        
+        float dt = (float)time.ElapsedGameTime.TotalSeconds;
+
+        //Faster ships make more foam
+        _funnelSmokeTimer -= dt * Math.Abs(PowerLevel) * 0.25f;
+
+        if (_funnelSmokeTimer < 0)
+        {
+            Random r = new Random();
+            
+            var funnel = FunnelLocations[r.Next(FunnelLocations.Count)];
+            
+            particles.Add(new Particle(template.Source,Position+funnel.X*Forward+funnel.Y*Port,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f));
+            //Reset timer and make a puff of smoke
+            _funnelSmokeTimer=_funnnelSmokeTimerMax;
+        }
+    }
+    public void SpawnFoam(ICollection<Particle> particles, ParticleTemplate template, GameTime time)
+    {
+        float dt = (float)time.ElapsedGameTime.TotalSeconds;
+
+        //Subtract timer from smoke timer depending on power level
+        _foamTimer -= dt*Math.Abs(ForwardSpeed/50) ;
+
+        if (_foamTimer < 0)
+        {
+            particles.Add(new Particle(template.Source,Position+Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f+Port*10));
+            particles.Add(new Particle(template.Source,Position+Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f-Port*10));
+            
+            particles.Add(new Particle(template.Source,Position-Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f+Port*10));
+            particles.Add(new Particle(template.Source,Position-Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f-Port*10));
+            //Reset timer and make a puff of smoke
+            _foamTimer =_foamTimerMax;
+        }
     }
 
-    public void Draw(SpriteBatch spriteBatch)
+    
+    
+    public void Draw(SpriteBatch spriteBatch, GameTime time)
     {
         spriteBatch.Draw(
             Texture,
@@ -185,20 +257,9 @@ public class Ship
         );
 
 
-        foreach (var loc in FunnelLocations)
+        foreach (var turret in Turrets)
         {
-            
-            spriteBatch.Draw(
-                DEBUG_DOT,
-                Position+loc.X*Forward+loc.Y*Port, 
-                null,
-                Color.White,
-                0,
-                new Vector2(DEBUG_DOT.Width*0.5f, DEBUG_DOT.Height*0.5f), 
-                1f,
-                SpriteEffects.None,
-                0.0f
-            );
+            turret.Draw(spriteBatch,Position+turret.Position.X*Forward+turret.Position.Y*Port,Rotation,time);
         }
     }
     

@@ -1,0 +1,133 @@
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework;
+
+namespace WeltKreuzer.Entities;
+
+public class Turret
+{
+    /// <summary>
+    /// Source of the gun texture
+    /// </summary>
+    private Texture2D _gunTexture;
+    
+    /// <summary>
+    /// Texture for the gun target/retical 
+    /// </summary>
+    private Texture2D _target;
+    private List<Rectangle> _sourceRectangles;
+    
+    
+    /// <summary>
+    /// Position relative to the ship or shore installation
+    /// </summary>
+    public Vector2 Position {get;set;}
+    //Origin on the texture
+    public Vector2 Origin;
+    
+    
+    public float MaxRotation {get;set;}
+    public float MinRotation {get;set;}
+    
+    public float Rotation {get;set;}
+    
+    public float theta {get;set;}
+
+    public Turret(Texture2D gunTexture,Texture2D target, int nframes, Vector2 origin)
+    {
+        Position = Vector2.Zero;
+        Origin = origin;
+        _gunTexture = gunTexture;
+        _target = target;
+        
+        MaxRotation = Single.Pi;
+        MinRotation =-Single.Pi;
+ 
+        MaxRotation = (MinRotation+Single.Pi*2)%(Single.Pi*2);
+        MinRotation = (MinRotation+Single.Pi*2)%(Single.Pi*2);
+        
+        
+        Rotation = (MaxRotation+MinRotation)*0.5f;
+        
+        _sourceRectangles = new();
+        for (int i = 0; i < nframes; i++)
+            _sourceRectangles.Add(new Rectangle((int)(i*gunTexture.Width*1f/nframes),0,gunTexture.Width/nframes,gunTexture.Height));
+    }
+
+    public Turret(Turret other, Vector2 position, float maxRotation, float minRotation)
+    {
+        Position = position;
+        Origin = other.Origin;
+        _gunTexture = other._gunTexture;
+        _target = other._target;
+        _sourceRectangles = other._sourceRectangles;
+        
+        MaxRotation = maxRotation;
+        MinRotation = minRotation;
+        Rotation = (MaxRotation+MinRotation)*0.5f;
+        
+        MaxRotation =( MaxRotation+Single.Pi*2)%(Single.Pi*2);
+        MinRotation = (MinRotation+Single.Pi*2)%(Single.Pi*2);
+        
+    }
+
+    public void SetTarget(Vector2 target, Vector2 globalPosition, float shipRotation)
+    {
+        var targetDirection =Vector2.Normalize( target - globalPosition);
+        var currentDirection = new Vector2(MathF.Cos(Rotation+shipRotation), MathF.Sin(Rotation+shipRotation));
+        var minDirection= new Vector2(MathF.Cos(MinRotation+shipRotation), MathF.Sin(MinRotation+shipRotation));
+        var maxDirection= new Vector2(MathF.Cos(MaxRotation+shipRotation), MathF.Sin(MaxRotation+shipRotation));
+        
+        float detA=targetDirection.X*minDirection.Y-targetDirection.Y*minDirection.X;
+        float detB=targetDirection.X*maxDirection.Y-targetDirection.Y*maxDirection.X;
+
+        if (detA < 0 && detB > 0)
+        {
+            float theta = MathF.Atan2(targetDirection.Y, targetDirection.X);
+            Rotation= theta -shipRotation;
+            
+            
+        }
+        
+        
+        //We need to check if the target rotation is clockwise or contraclockwise relative to our rotation
+        
+    }
+    
+    public void Draw(SpriteBatch spriteBatch, Vector2 globalPosition,float shipRotation, GameTime gameTime)
+    {
+        theta +=(float)gameTime.ElapsedGameTime.TotalSeconds;
+
+        //float Rotation = MinRotation + (MaxRotation - MinRotation) * 0.5f * (1 + float.Sin(theta));
+        
+        float globalRotation = Rotation+shipRotation;
+        int phase = 0;
+        spriteBatch.Draw(
+            _gunTexture,
+            globalPosition, 
+            _sourceRectangles[phase],
+            new Color((byte)255,(byte)255,(byte)255,(byte)255),
+            globalRotation,
+            Origin,
+            1f,
+            SpriteEffects.None,
+            0.0f
+        );
+        
+        spriteBatch.Draw(
+            _target,
+            globalPosition+new Vector2(float.Cos(globalRotation),float.Sin(globalRotation))*300, 
+            null,
+            new Color((byte)255,(byte)255,(byte)255,(byte)255),
+            globalRotation,
+            new Vector2(_target.Width/2f, _target.Height/2f),
+            1f,
+            SpriteEffects.None,
+            0.0f
+        );
+        
+        
+    }
+}

@@ -14,6 +14,7 @@ public class LevelScene : Scene
 {
     private Ship _Emden;
 
+    
     private Texture2D _powerIndicator;
     private Texture2D _powerIndicatorHandle;
     
@@ -23,9 +24,10 @@ public class LevelScene : Scene
     /// <summary>
     /// Linked list, for easier deletion of dead particles, a deque would be better
     /// </summary>
-    private LinkedList<Particle> _Smoke;
+    private LinkedList<Particle> _smoke;
+    
+    private LinkedList<Particle> _foam;
 
-    private float SpawnTimer_test=1;
     
     public override void Initialize()
     {
@@ -33,16 +35,23 @@ public class LevelScene : Scene
         base.Initialize();
     }
 
-    private Texture2D TEMPSmokeTexture;
+    
+    private ParticleTemplate _smokeTemplate;
+    private ParticleTemplate _foamTemplate;
     
     public override void LoadContent()
     {
-        _Emden = new Ship(Content.Load<Texture2D>("images/Emden"),new Vector2(200,200),0,Content.Load<Texture2D>("images/debugDot"));
+        var _EmdenTurret = new Turret(Content.Load<Texture2D>("images/105mm"),Content.Load<Texture2D>("images/debugDot"),1,new Vector2(8,8));
         
-        TEMPSmokeTexture= Content.Load<Texture2D>("images/smoke");
-        _Smoke = new LinkedList<Particle>();
+        _Emden = new Ship(Content.Load<Texture2D>("images/Emden"),new Vector2(200,200),0,_EmdenTurret);
+        
+        //TODO: This should be loaded from an xml file
+        _smokeTemplate = new ParticleTemplate(Content.Load<Texture2D>("images/smoke"),4,4,0.2f,new Vector2(100,100));
+        _smoke = new LinkedList<Particle>();
         
         
+        _foamTemplate = new ParticleTemplate(Content.Load<Texture2D>("images/foam"),4,2,0.5f,new Vector2(0,0));
+        _foam = new LinkedList<Particle>();
         
         _powerIndicator= Content.Load<Texture2D>("images/powerIndicator");
         _powerIndicatorHandle= Content.Load<Texture2D>("images/powerIndicatorHandle");
@@ -75,23 +84,21 @@ public class LevelScene : Scene
             ++_Emden.Rudder;
         }
         
+        Vector2 target = Core.Input.Mouse.Position.ToVector2();
+        
+        _Emden.SetTarget(target);
+        
         
         
         _Emden.Update(gameTime);
+        _Emden.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
+        _Emden.SpawnFoam(_foam,_foamTemplate,gameTime);
         
-        //Temp, decrement smoke spawn time
-        SpawnTimer_test-=(float)gameTime.ElapsedGameTime.TotalSeconds;
-        if (SpawnTimer_test < 0)
-        {
-           // Console.WriteLine("puff");
-           // _Smoke.AddLast(new Particle(TEMPSmokeTexture, _Emden.Position, 4, 1));
-            SpawnTimer_test = 0.1f;
-        }
         
-        //Update particles, and remove dead smoke
+        //Update particles, and remove dead once
         List<Particle> toRemove = new List<Particle>();
         
-        foreach (var smoke in _Smoke)
+        foreach (var smoke in _smoke)
         {
             smoke.Update(gameTime);
             if (smoke.Dead)
@@ -102,7 +109,21 @@ public class LevelScene : Scene
 
         foreach (var p in toRemove)
         {
-            _Smoke.Remove(p);
+            _smoke.Remove(p);
+        }
+        toRemove = new List<Particle>();
+        
+        foreach (var foam in _foam)
+        {
+            foam.Update(gameTime);
+            if (foam.Dead)
+            {
+                toRemove.Add(foam);
+            }
+        }
+        foreach (var p in toRemove)
+        {
+            _foam.Remove(p);
         }
         
         
@@ -115,9 +136,15 @@ public class LevelScene : Scene
         
         Core.SpriteBatch.Begin();
         
-        _Emden.Draw(Core.SpriteBatch);
+        //Draw one kind at the time to reduce texture swapping
+        foreach (var foam in _foam)
+            foam.Draw(Core.SpriteBatch);
         
-        Core.SpriteBatch.Draw(_powerIndicator,new Vector2(0,Core.GraphicsDevice.Viewport.Height-_powerIndicator.Height), Color.White);
+        _Emden.Draw(Core.SpriteBatch,gameTime);
+        
+
+        
+        
         Core.SpriteBatch.Draw(
             _powerIndicatorHandle,
             new Vector2(0,Core.GraphicsDevice.Viewport.Height), 
@@ -130,10 +157,10 @@ public class LevelScene : Scene
             0.0f
         );
         
-
-        foreach (var smoke in _Smoke)
+        foreach (var smoke in _smoke)
             smoke.Draw(Core.SpriteBatch);
         
+        Core.SpriteBatch.Draw(_powerIndicator,new Vector2(0,Core.GraphicsDevice.Viewport.Height-_powerIndicator.Height), Color.White);
         
         float speedKn = _Emden.ForwardSpeed / (8 * 0.5144444f);
         Core.SpriteBatch.DrawString(_font, $"{speedKn.ToString("00.00")}", new Vector2(140, Core.GraphicsDevice.Viewport.Height-30), Color.Yellow, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);

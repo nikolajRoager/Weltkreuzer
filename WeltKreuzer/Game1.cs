@@ -8,7 +8,7 @@ namespace WeltKreuzer;
 
 public class Game1 : Core
 {
-    public Game1() : base("Weltkreuzer")
+    public Game1() : base("Weltkreuzer (maximize this window)")
     {
     }
 
