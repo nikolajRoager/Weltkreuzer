@@ -20,8 +20,14 @@ public class LevelScene : Scene
     private Texture2D _powerIndicatorHandle;
 
     private Texture2D _speedIndicatorHandle;
+
+    private Texture2D _wheel;
+    
+    
     
     private float _powerIndicatorAngle;
+    
+    private float _wheelAngle;
     
     private SpriteFont _font;
 
@@ -70,6 +76,7 @@ public class LevelScene : Scene
         _powerIndicator= Content.Load<Texture2D>("images/powerIndicator");
         _powerIndicatorHandle= Content.Load<Texture2D>("images/powerIndicatorHandle");
         _speedIndicatorHandle= Content.Load<Texture2D>("images/SpeedHandle");
+        _wheel = Content.Load<Texture2D>("images/Wheel");
         
         _font = Core.Content.Load<SpriteFont>("fonts/normalFont");
 
@@ -107,7 +114,7 @@ public class LevelScene : Scene
 
         if (Core.Input.Mouse.WasButtonJustPressed(MouseButton.Left))
         {
-            _Emden.Shoot(_smoke,_smokeTemplate);
+            _Emden.Shoot(_smoke,_smokeTemplate,_shells);
         }
 
         List<Shell> shellsToRemove=new();
@@ -122,8 +129,12 @@ public class LevelScene : Scene
 
         foreach (var shell in shellsToRemove)
         {
+            _foam.AddLast(new Particle(_foamTemplate.Source, shell.Position, _foamTemplate.Nframes,
+                _foamTemplate.LifeTime, _foamTemplate.Friction, Vector2.Zero, Vector2.Zero));
+                
             _shells.Remove(shell);
-            //Handle splas-down/hit detection
+            //todo: Handle splas-down/hit detection
+            
             
         }
         
@@ -198,6 +209,35 @@ public class LevelScene : Scene
         {
             _powerIndicatorAngle = MathF.Max(_powerIndicatorAngle-dt,powerIndicatorTarget ) ;
         }
+
+        float targetWheelAngle = 0;
+
+        if (_Emden.Rudder == -1)
+        {
+            targetWheelAngle = -3;
+        }
+        else if (_Emden.Rudder == 0)
+        {
+            targetWheelAngle = 0;
+        }
+        else if (_Emden.Rudder == 1)
+        {
+            targetWheelAngle = 3;
+        }
+
+        if (_wheelAngle < targetWheelAngle)
+        {
+            _wheelAngle += dt*4;
+            
+            if (_wheelAngle > targetWheelAngle)
+                _wheelAngle = targetWheelAngle;
+        }
+        else if (_wheelAngle > targetWheelAngle)
+        {
+            _wheelAngle -= dt*4;
+            if (_wheelAngle < targetWheelAngle)
+                _wheelAngle = targetWheelAngle;
+        }
         
         float speedKn = _Emden.ForwardSpeed / (8 * 0.5144444f);
         
@@ -224,6 +264,18 @@ public class LevelScene : Scene
             SpriteEffects.None,
             0.0f
         );
+        
+        Core.SpriteBatch.Draw(
+            _wheel,
+            new Vector2(200,Core.GraphicsDevice.Viewport.Height-180), 
+            null,
+            Color.White,
+            _wheelAngle,
+            new Vector2(_wheel.Width*0.5f, _wheel.Height*0.5f), 
+            1f,
+            SpriteEffects.None,
+            0.0f
+        );
 
         foreach (var shell in  _shells)
         {
@@ -243,6 +295,9 @@ public class LevelScene : Scene
         
         Core.SpriteBatch.DrawString(_font, $"{loadedGuns}", target+new Vector2(0,-36), Color.Red, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         
+        
+        if (_Emden.PowerLevel==4)
+            Core.SpriteBatch.DrawString(_font, $"Engine Vibrations reduce accuracy!", new Vector2(Core.GraphicsDevice.Viewport.Width*0.2f,0), Color.Red, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         
         Core.SpriteBatch.End();
     }
