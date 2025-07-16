@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using MatrosEngine;
+using MatrosEngine.Input;
 using MatrosEngine.Particles;
 using MatrosEngine.Scenes;
 using Microsoft.Xna.Framework;
@@ -17,6 +18,10 @@ public class LevelScene : Scene
     
     private Texture2D _powerIndicator;
     private Texture2D _powerIndicatorHandle;
+
+    private Texture2D _speedIndicatorHandle;
+    
+    private float _powerIndicatorAngle;
     
     private SpriteFont _font;
 
@@ -28,6 +33,11 @@ public class LevelScene : Scene
     
     private LinkedList<Particle> _foam;
 
+    /// <summary>
+    /// Shells in the air
+    /// </summary>
+    private LinkedList<Shell> _shells;
+    
     
     public override void Initialize()
     {
@@ -43,7 +53,7 @@ public class LevelScene : Scene
     {
         var _EmdenTurret = new Turret(Content.Load<Texture2D>("images/105mm"),Content.Load<Texture2D>("images/debugDot"),1,new Vector2(8,8));
         
-        _Emden = new Ship(Content.Load<Texture2D>("images/Emden"),new Vector2(200,200),0,_EmdenTurret);
+        _Emden = new Ship(Content.Load<Texture2D>("images/Emden"),Content.Load<Texture2D>("images/projectile"),new Vector2(200,200),0,_EmdenTurret);
         
         //TODO: This should be loaded from an xml file
         _smokeTemplate = new ParticleTemplate(Content.Load<Texture2D>("images/smoke"),4,4,0.2f,new Vector2(100,100));
@@ -53,11 +63,18 @@ public class LevelScene : Scene
         _foamTemplate = new ParticleTemplate(Content.Load<Texture2D>("images/foam"),4,2,0.5f,new Vector2(0,0));
         _foam = new LinkedList<Particle>();
         
+        _shells = new LinkedList<Shell>();
+        _shells.AddLast(new Shell(Content.Load<Texture2D>("images/projectile"),new Vector2(400,400),new Vector2(20, 20),10));
+        
+        
         _powerIndicator= Content.Load<Texture2D>("images/powerIndicator");
         _powerIndicatorHandle= Content.Load<Texture2D>("images/powerIndicatorHandle");
+        _speedIndicatorHandle= Content.Load<Texture2D>("images/SpeedHandle");
         
         _font = Core.Content.Load<SpriteFont>("fonts/normalFont");
-        
+
+
+        _powerIndicatorAngle = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
         
         base.LoadContent();
     }
@@ -65,21 +82,21 @@ public class LevelScene : Scene
     public override void Update(GameTime gameTime)
     {
 
-        if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Up))
+        if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Up) || Core.Input.Keyboard.WasKeyJustPressed(Keys.W))
         {
             _Emden.AddPower(true);
         }
-        if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Down))
+        if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Down) || Core.Input.Keyboard.WasKeyJustPressed(Keys.S))
         {
             _Emden.AddPower(false);
         }
 
         _Emden.Rudder = 0;
-        if (Core.Input.Keyboard.IsKeyDown(Keys.Left))
+        if (Core.Input.Keyboard.IsKeyDown(Keys.Left) || Core.Input.Keyboard.IsKeyDown(Keys.A))
         {
             --_Emden.Rudder;
         }
-        if (Core.Input.Keyboard.IsKeyDown(Keys.Right))
+        if (Core.Input.Keyboard.IsKeyDown(Keys.Right) || Core.Input.Keyboard.IsKeyDown(Keys.D))
         {
             ++_Emden.Rudder;
         }
@@ -87,6 +104,28 @@ public class LevelScene : Scene
         Vector2 target = Core.Input.Mouse.Position.ToVector2();
         
         _Emden.SetTarget(target);
+
+        if (Core.Input.Mouse.WasButtonJustPressed(MouseButton.Left))
+        {
+            _Emden.Shoot(_smoke,_smokeTemplate);
+        }
+
+        List<Shell> shellsToRemove=new();
+
+        foreach (var shell in _shells)
+        {
+            shell.Update(gameTime);
+            
+            if (shell.IsSplash)
+                shellsToRemove.Add(shell);
+        }
+
+        foreach (var shell in shellsToRemove)
+        {
+            _shells.Remove(shell);
+            //Handle splas-down/hit detection
+            
+        }
         
         
         
@@ -131,6 +170,7 @@ public class LevelScene : Scene
 
     public override void Draw(GameTime gameTime)
     {
+        float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
         //Unlikely to be seen, but no harm if it is
         Core.GraphicsDevice.Clear(Color.LightBlue);
         
@@ -144,26 +184,66 @@ public class LevelScene : Scene
         
 
         
+        foreach (var smoke in _smoke)
+            smoke.Draw(Core.SpriteBatch);
+        
+        Core.SpriteBatch.Draw(_powerIndicator,new Vector2(0,Core.GraphicsDevice.Viewport.Height-_powerIndicator.Height), Color.White);
+
+        float powerIndicatorTarget = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
+        if (powerIndicatorTarget > _powerIndicatorAngle)
+        {
+            _powerIndicatorAngle = MathF.Min(_powerIndicatorAngle+dt,powerIndicatorTarget ) ;
+        }
+        else if (powerIndicatorTarget < _powerIndicatorAngle)
+        {
+            _powerIndicatorAngle = MathF.Max(_powerIndicatorAngle-dt,powerIndicatorTarget ) ;
+        }
+        
+        float speedKn = _Emden.ForwardSpeed / (8 * 0.5144444f);
+        
+        Core.SpriteBatch.Draw(
+            _speedIndicatorHandle,
+            new Vector2(192,Core.GraphicsDevice.Viewport.Height), 
+            null,
+            Color.White,
+            (speedKn/20-0.5f)*Single.Pi,
+            new Vector2(_speedIndicatorHandle.Width*0.5f, _speedIndicatorHandle.Height-2), 
+            1f,
+            SpriteEffects.None,
+            0.0f
+        );
         
         Core.SpriteBatch.Draw(
             _powerIndicatorHandle,
             new Vector2(0,Core.GraphicsDevice.Viewport.Height), 
             null,
             Color.White,
-            (_Emden.PowerLevel+2)*0.16f*Single.Pi*0.5f,
+            _powerIndicatorAngle,
             new Vector2(_powerIndicatorHandle.Width*0.5f, _powerIndicatorHandle.Height-2), 
             1f,
             SpriteEffects.None,
             0.0f
         );
+
+        foreach (var shell in  _shells)
+        {
+            shell.Draw(Core.SpriteBatch);
+        }
+
+        int loadedGuns = 0;
+        foreach (var turret in _Emden.Turrets)
+        {
+            if (turret.Aimed && turret.IsLoaded)
+            {
+                ++loadedGuns;
+            }
+        }
         
-        foreach (var smoke in _smoke)
-            smoke.Draw(Core.SpriteBatch);
+        Vector2 target = Core.Input.Mouse.Position.ToVector2();
         
-        Core.SpriteBatch.Draw(_powerIndicator,new Vector2(0,Core.GraphicsDevice.Viewport.Height-_powerIndicator.Height), Color.White);
+        Core.SpriteBatch.DrawString(_font, $"{loadedGuns}", target+new Vector2(0,-36), Color.Red, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         
-        float speedKn = _Emden.ForwardSpeed / (8 * 0.5144444f);
-        Core.SpriteBatch.DrawString(_font, $"{speedKn.ToString("00.00")}", new Vector2(140, Core.GraphicsDevice.Viewport.Height-30), Color.Yellow, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
+        
         Core.SpriteBatch.End();
     }
 }

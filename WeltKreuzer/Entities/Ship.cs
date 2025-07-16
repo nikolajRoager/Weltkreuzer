@@ -9,6 +9,11 @@ namespace WeltKreuzer.Entities;
 public class Ship
 {
     public Texture2D Texture { get; private set; }
+    
+    /// <summary>
+    /// texture of the shells fired by this ship. Each ship may use its own type of shell
+    /// </summary>
+    public Texture2D ShellTexture { get; private set; }
     public Vector2 Position { get; private set; }
     
     /// <summary>
@@ -76,8 +81,38 @@ public class Ship
     public float _foamTimerMax;
     private float _foamTimer;
     
-    public List<Turret> Turrets { get; private set; } 
     
+    
+    public List<Turret> Turrets { get; private set; }
+
+
+    public void Shoot(ICollection<Particle> smoke, ParticleTemplate smokeTemplate)
+    {
+        Console.WriteLine("Fire");
+
+        foreach (var turret in Turrets)
+        {
+            if (turret.IsLoaded && turret.Aimed)
+            {
+                turret.Shoot();
+                Console.WriteLine("Boom");
+                {
+                    var gunFacing = Rotation + turret.Rotation;
+
+                    var gunFacingVector = new Vector2(MathF.Cos(gunFacing), MathF.Sin(gunFacing));
+                    
+                    var pos = Position + turret.Position.X * Forward + turret.Position.Y * Port
+                              + gunFacingVector*turret.Length;
+                    
+                    //Spawn one big puff of smoke
+                    for (int angle = -5; angle <= 5; angle++)
+                    {
+                        smoke.Add(new Particle(smokeTemplate.Source,pos,smokeTemplate.Nframes,smokeTemplate.LifeTime, smokeTemplate.Friction,smokeTemplate.Wind,Velocity+new Vector2(MathF.Cos(gunFacing+angle*Single.Pi/5f), MathF.Sin(gunFacing+angle*Single.Pi/5f))*5+gunFacingVector*10));
+                    }
+                }
+            }
+        }
+    }
     
     public bool AddPower(bool Up)
     {
@@ -121,9 +156,10 @@ public class Ship
 
 
     
-    public Ship(Texture2D texture, Vector2 position, float speed, Turret turretTemplate,float rotation=0)
+    public Ship(Texture2D texture, Texture2D shellTexture, Vector2 position, float speed, Turret turretTemplate,float rotation=0)
     {
         
+        ShellTexture = shellTexture;
         
         Texture = texture;
         Position = position;
@@ -131,11 +167,11 @@ public class Ship
 
         Turrets = new List<Turret>()
         {
-          new Turret(turretTemplate,new Vector2(-50,4),Single.Pi+0.5f,Single.Pi -1.0f),
-          new Turret(turretTemplate,new Vector2(-50,-2),Single.Pi+1.0f,Single.Pi-0.5f),
+          new Turret(turretTemplate,new Vector2(-50,4),Single.Pi+0.5f,Single.Pi -1.5f),
+          new Turret(turretTemplate,new Vector2(-50,-2),Single.Pi+1.5f,Single.Pi-0.5f),
           
           new Turret(turretTemplate,new Vector2(-36,6),Single.Pi, Single.Pi-2),
-         new Turret(turretTemplate,new Vector2(-36,-6),Single.Pi+2,Single.Pi),
+          new Turret(turretTemplate,new Vector2(-36,-6),Single.Pi+2,Single.Pi),
           
           new Turret(turretTemplate,new Vector2(0,7),Single.Pi*0.7f, Single.Pi*0.3f),
           new Turret(turretTemplate,new Vector2(0,-7),-Single.Pi*0.3f, -Single.Pi*0.7f),
@@ -143,8 +179,8 @@ public class Ship
           new Turret(turretTemplate,new Vector2(36,6),2,0),
           new Turret(turretTemplate,new Vector2(36,-6),0,-2),
           
-          new Turret(turretTemplate,new Vector2(50,4),1,-0.5f),
-          new Turret(turretTemplate,new Vector2(50,-2),0.5f,-1),
+          new Turret(turretTemplate,new Vector2(50,4),1.5f,-0.5f),
+          new Turret(turretTemplate,new Vector2(50,-2),0.5f,-1.5f),
             
         };
         
@@ -197,6 +233,10 @@ public class Ship
         //Apply to position, 1st degree motion only
         Position += Velocity * dt;
 
+        
+        foreach (var turret in Turrets)
+            turret.Update(time);
+        
     }
 
     /// <summary>

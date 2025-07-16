@@ -39,6 +39,13 @@
 /processorParam:TextureFormat=Compressed
 /build:fonts/normalFont.spritefont
 
+#begin fonts/RedInfotext.spritefont
+/importer:FontDescriptionImporter
+/processor:FontDescriptionProcessor
+/processorParam:PremultiplyAlpha=True
+/processorParam:TextureFormat=Compressed
+/build:fonts/RedInfotext.spritefont
+
 #begin images/105mm.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -111,6 +118,18 @@
 /processorParam:TextureFormat=Color
 /build:images/powerIndicatorHandle.png
 
+#begin images/projectile.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:images/projectile.png
+
 #begin images/smoke.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -122,4 +141,16 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:images/smoke.png
+
+#begin images/SpeedHandle.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:images/SpeedHandle.png
 

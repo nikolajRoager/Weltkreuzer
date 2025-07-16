@@ -17,7 +17,14 @@ public class Turret
     /// Texture for the gun target/retical 
     /// </summary>
     private Texture2D _target;
+    
+    /// <summary>
+    /// I ended up not animated the turret, this ghost code is left here
+    /// </summary>
     private List<Rectangle> _sourceRectangles;
+    
+    public float Length => _sourceRectangles[0].Width-Origin.X;
+    
     
     
     /// <summary>
@@ -31,9 +38,37 @@ public class Turret
     public float MaxRotation {get;set;}
     public float MinRotation {get;set;}
     
-    public float Rotation {get;set;}
+    public float Rotation {get;private set;}
     
     public float theta {get;set;}
+
+    /// <summary>
+    /// The gun is currently pointing at the target
+    /// </summary>
+    public bool Aimed {get;private set;}
+    
+    /// <summary>
+    /// Distance we are aiming at
+    /// </summary>
+    public float Distance {get;private set;}
+
+    /// <summary>
+    /// How long till this gun is loaded?
+    /// </summary>
+    public float ReloadTimer { get; private set; } = 0;
+    
+    public float MaxReloadTimer { get; private set; } = 4;//15 RPM
+
+    public bool IsLoaded => ReloadTimer <= 0;
+
+    public void Shoot()
+    {
+        if (Aimed && IsLoaded)
+        {
+            
+            ReloadTimer = MaxReloadTimer;
+        }
+    }
 
     public Turret(Texture2D gunTexture,Texture2D target, int nframes, Vector2 origin)
     {
@@ -73,6 +108,21 @@ public class Turret
         
     }
 
+    public void Update(GameTime gameTime)
+    {
+        if (ReloadTimer > 0)
+        {
+            float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+            ReloadTimer -= dt;
+
+            if (ReloadTimer < 0)
+            {
+                ReloadTimer = 0;
+            }
+        }
+}
+
     public void SetTarget(Vector2 target, Vector2 globalPosition, float shipRotation)
     {
         var targetDirection =Vector2.Normalize( target - globalPosition);
@@ -80,6 +130,7 @@ public class Turret
         var minDirection= new Vector2(MathF.Cos(MinRotation+shipRotation), MathF.Sin(MinRotation+shipRotation));
         var maxDirection= new Vector2(MathF.Cos(MaxRotation+shipRotation), MathF.Sin(MaxRotation+shipRotation));
         
+        //Check if the angle is legal
         float detA=targetDirection.X*minDirection.Y-targetDirection.Y*minDirection.X;
         float detB=targetDirection.X*maxDirection.Y-targetDirection.Y*maxDirection.X;
 
@@ -87,12 +138,16 @@ public class Turret
         {
             float theta = MathF.Atan2(targetDirection.Y, targetDirection.X);
             Rotation= theta -shipRotation;
-            
-            
+            Aimed = true;
+            Distance=Vector2.Distance(target,globalPosition);
+        }
+        else
+        {
+            Aimed=false;
+            Rotation = (MinRotation + MaxRotation)*0.5f;
         }
         
         
-        //We need to check if the target rotation is clockwise or contraclockwise relative to our rotation
         
     }
     
@@ -115,18 +170,21 @@ public class Turret
             SpriteEffects.None,
             0.0f
         );
-        
-        spriteBatch.Draw(
-            _target,
-            globalPosition+new Vector2(float.Cos(globalRotation),float.Sin(globalRotation))*300, 
-            null,
-            new Color((byte)255,(byte)255,(byte)255,(byte)255),
-            globalRotation,
-            new Vector2(_target.Width/2f, _target.Height/2f),
-            1f,
-            SpriteEffects.None,
-            0.0f
-        );
+
+        if (Aimed)
+        {
+            spriteBatch.Draw(
+                _target,
+                globalPosition+new Vector2(float.Cos(globalRotation),float.Sin(globalRotation))*Distance, 
+                null,
+                new Color((byte)255,(byte)255,(byte)255,(byte)255),
+                globalRotation,
+                new Vector2(_target.Width/2f, _target.Height/2f),
+                1f,
+                SpriteEffects.None,
+                0.0f
+            );
+        }
         
         
     }
