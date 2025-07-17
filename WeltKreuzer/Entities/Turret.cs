@@ -70,8 +70,9 @@ public class Turret
         }
     }
 
-    public Turret(Texture2D gunTexture,Texture2D target, int nframes, Vector2 origin)
+    public Turret(Texture2D gunTexture,Texture2D target, float maxReloadTimer, Vector2 origin)
     {
+        MaxReloadTimer = maxReloadTimer;
         Position = Vector2.Zero;
         Origin = origin;
         _gunTexture = gunTexture;
@@ -85,7 +86,9 @@ public class Turret
         
         
         Rotation = (MaxRotation+MinRotation)*0.5f;
-        
+
+        //Some ghost code from when I thought the guns would be animated
+        int nframes = 1;
         _sourceRectangles = new();
         for (int i = 0; i < nframes; i++)
             _sourceRectangles.Add(new Rectangle((int)(i*gunTexture.Width*1f/nframes),0,gunTexture.Width/nframes,gunTexture.Height));

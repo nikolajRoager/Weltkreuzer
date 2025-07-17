@@ -176,6 +176,34 @@ public class Ship
     }
 
 
+
+    public Ship(Texture2D texture, Texture2D shellTexture, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction)
+    {
+        Texture = texture;
+        ShellTexture = shellTexture;
+        Turrets = turrets;
+        FunnelLocations = funnelLocations;
+        MaxThrust = maxThrust;
+        RudderTorquePerSpeed = rudderTorquePerSpeed;
+        TurnFriction = turnFriction;
+        PortFriction = portFriction;
+        ForwardFriction = forwardFriction;
+        
+        
+
+        Rotation = 0.0f;
+        Omega = 0.0f;
+        
+        Forward = new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
+        Port = new Vector2(-Forward.Y, Forward.X);
+        
+        FunnnelSmokeTimerMax=0.1f;
+        _funnelSmokeTimer=FunnnelSmokeTimerMax;
+        
+        FoamTimerMax=0.1f;
+        _foamTimer=FoamTimerMax;
+        
+    }
     
     /// <summary>
     /// Default constructor, creates Emden
@@ -197,8 +225,8 @@ public class Ship
 
         Turrets = new List<Turret>()
         {
-          new Turret(turretTemplate,new Vector2(-50,4),Single.Pi+0.5f,Single.Pi -1.5f),
-          new Turret(turretTemplate,new Vector2(-50,-2),Single.Pi+1.5f,Single.Pi-0.5f),
+          new Turret(turretTemplate,new Vector2(-50,3),Single.Pi+0.5f,Single.Pi -1.5f),
+          new Turret(turretTemplate,new Vector2(-50,-3),Single.Pi+1.5f,Single.Pi-0.5f),
           
           new Turret(turretTemplate,new Vector2(-36,6),Single.Pi, Single.Pi-2),
           new Turret(turretTemplate,new Vector2(-36,-6),Single.Pi+2,Single.Pi),
@@ -209,8 +237,8 @@ public class Ship
           new Turret(turretTemplate,new Vector2(36,6),2,0),
           new Turret(turretTemplate,new Vector2(36,-6),0,-2),
           
-          new Turret(turretTemplate,new Vector2(50,4),1.5f,-0.5f),
-          new Turret(turretTemplate,new Vector2(50,-2),0.5f,-1.5f),
+          new Turret(turretTemplate,new Vector2(50,3),1.5f,-0.5f),
+          new Turret(turretTemplate,new Vector2(50,-3),0.5f,-1.5f),
             
         };
         
@@ -280,7 +308,7 @@ public class Ship
         //Faster ships make more foam
         _funnelSmokeTimer -= dt * Math.Abs(PowerLevel) * 0.25f;
 
-        if (_funnelSmokeTimer < 0)
+        if (_funnelSmokeTimer < 0 && FunnelLocations.Count>0)
         {
             Random r = new Random();
             

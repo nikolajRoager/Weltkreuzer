@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Xml;
+using System.Xml.Linq;
 using MatrosEngine;
 using MatrosEngine.Input;
 using MatrosEngine.Particles;
@@ -57,11 +60,17 @@ public class LevelScene : Scene
     
     public override void LoadContent()
     {
-        var _EmdenTurret = new Turret(Content.Load<Texture2D>("images/105mm"),Content.Load<Texture2D>("images/debugDot"),1,new Vector2(8,8));
+
+        var aimingDot = Content.Load<Texture2D>("images/debugDot");
+        
+        
+        var _EmdenTurret = new Turret(Content.Load<Texture2D>("images/105mm"),Content.Load<Texture2D>("images/debugDot"),4,new Vector2(8,8));
         
         _Emden = new Ship(Content.Load<Texture2D>("images/Emden"),Content.Load<Texture2D>("images/projectile"),new Vector2(200,200),0,_EmdenTurret);
         
-        //TODO: This should be loaded from an xml file
+        
+        
+        //Load a lot of pictures
         _smokeTemplate = new ParticleTemplate(Content.Load<Texture2D>("images/smoke"),4,4,0.2f,new Vector2(100,100));
         _smoke = new LinkedList<Particle>();
         
@@ -80,9 +89,79 @@ public class LevelScene : Scene
         
         _font = Core.Content.Load<SpriteFont>("fonts/normalFont");
 
-
         _powerIndicatorAngle = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
         
+        //Load all ships into memory
+        string shipFilePath = Path.Combine(Core.Content.RootDirectory, "ships/AllShips.xml");
+
+        
+        Texture2D shellTexture = Content.Load<Texture2D>("images/projectile");
+        
+        
+        Dictionary<string, Ship> ships = new Dictionary<string, Ship>();
+        Dictionary<string, Turret> turrets = new Dictionary<string, Turret>();
+        
+        using (Stream stream = TitleContainer.OpenStream(shipFilePath))
+        {
+            using (XmlReader reader = XmlReader.Create(stream))
+            {
+                XDocument doc = XDocument.Load(reader);
+                XElement root = doc.Root;
+
+                foreach(XElement ship in root.Elements("ship"))
+                {
+                    var Class = ship.Attribute("class")?.Value ?? "null";
+                    var shipTexture = Content.Load<Texture2D>("images/"+Class);
+                    
+                    List<Turret> shipTurrets = new List<Turret>();
+                    
+                    //Read all funnel locations
+                    List<Vector2> funnelLocations = new List<Vector2>();
+                    foreach(XElement funnel in ship.Elements("funnel"))
+                    {
+                        funnelLocations.Add(new Vector2(float.Parse(funnel.Attribute("X").Value),float.Parse(funnel.Attribute("Y").Value)));
+                    }
+
+                    foreach (XElement turret in ship.Elements("turret"))
+                    {
+                        string model = turret.Attribute("Model")?.Value ?? "null";
+                        //If this already exists
+                        Turret turretType;
+                        if (turrets.ContainsKey(model))
+                        {
+                            turretType = turrets[model];
+                        }
+                        else
+                        {
+                            turretType = new Turret(Content.Load<Texture2D>("images/"+model),aimingDot,float.Parse(turret.Attribute("ReloadTime")?.Value ?? "4"),new Vector2(float.Parse(turret.Attribute("OriginX")?.Value ?? "0"),float.Parse(turret.Attribute("OriginY")?.Value ?? "0")));
+                            //Save for later re-usage
+                            turrets[model] = turretType;
+                            
+                        }
+                        
+                        float MaxRotation = float.Parse(turret.Attribute("maxRotation")?.Value ?? "0");
+                        float MinRotation = float.Parse(turret.Attribute("minRotation")?.Value ?? "0");
+                        Vector2 turretLocation = new Vector2(float.Parse(turret.Attribute("X")?.Value ?? "0"),
+                            float.Parse(turret.Attribute("Y")?.Value ?? "0"));
+                        
+                        shipTurrets.Add(new Turret(turretType,turretLocation,MaxRotation,MinRotation));
+                    }
+                    
+                    //<ship class="Emden" MaxThrust="9.6" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1">
+                    float maxThrust = float.Parse(ship.Attribute("MaxThrust")?.Value ?? "9.6");
+                    float rudderTorquePerSpeed = float.Parse(ship.Attribute("RudderTorquePerSpeed")?.Value ?? "0.01");
+                    float turnFriction = float.Parse(ship.Attribute("TurnFriction")?.Value ?? "1");
+                    float portFriction = float.Parse(ship.Attribute("PortFriction")?.Value ?? "1");
+                    float forwardFriction= float.Parse(ship.Attribute("ForwardFriction")?.Value ?? "0.1");
+                    
+                    ships.Add(Class ,new Ship(shipTexture,shellTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction));
+                }
+            }
+        }
+
+        _Emden = ships["Emden"];
+
+
         base.LoadContent();
     }
 

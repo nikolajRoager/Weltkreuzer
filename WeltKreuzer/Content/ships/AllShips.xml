@@ -1,5 +1,22 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<XnaContent xmlns:ns="Microsoft.Xna.Framework">
-  <Asset Type="Object">
-  </Asset>
-</XnaContent>
+<ships>
+  <ship class="Emden" MaxThrust="9.6" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1">
+    <funnel X="-2" Y="0"/>
+    <funnel X="10" Y="0"/>
+    <funnel X="24" Y="0"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="-50" Y="3" maxRotation="3.641592653589793" minRotation="1.6415926535897931"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="-50" Y="-3" maxRotation="4.641592653589793" minRotation="2.6415926535897931"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="-36" Y="6" maxRotation="3.141592653589793" minRotation="1.141592653589793"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="-36" Y="-6" maxRotation="5.141592653589793" minRotation="3.141592653589793"/>
+    
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="0" Y="7" maxRotation="2.199114857512855" minRotation="0.9424777960769379"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="0" Y="-7" minRotation="-2.199114857512855" maxRotation="-0.9424777960769379"/>
+    
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="36" Y="6" maxRotation="2" minRotation="0"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="36" Y="-6" maxRotation="0" minRotation="-2"/>
+
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="50" Y="3" maxRotation="1.5" minRotation="-0.5"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="50" Y="-3" maxRotation="0.5" minRotation="-1.5"/>
+  
+  </ship>
+</ships>
