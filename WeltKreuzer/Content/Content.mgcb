@@ -13,6 +13,30 @@
 
 #---------------------------------- Content ---------------------------------#
 
+#begin Audio/184650__isaac200000__cannon1.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/184650__isaac200000__cannon1.wav
+
+#begin Audio/519008__sheyvan__water-explosion.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/519008__sheyvan__water-explosion.wav
+
+#begin Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac.wav
+
+#begin Audio/753972__klankbeeld__coast-far-shipping-1106-am-220905_0526.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/753972__klankbeeld__coast-far-shipping-1106-am-220905_0526.wav
+
 #begin background/Bundesarchiv_DVM_10_Bild-23-61-13,_Kleiner_Kreuzer__SMS_Emden_I_.jpg
 /importer:TextureImporter
 /processor:TextureProcessor

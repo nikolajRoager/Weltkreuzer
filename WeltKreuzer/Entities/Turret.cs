@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using MatrosEngine;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 
 namespace WeltKreuzer.Entities;
 
@@ -60,18 +62,22 @@ public class Turret
     public float MaxReloadTimer { get; private set; } = 4;//15 RPM
 
     public bool IsLoaded => ReloadTimer <= 0;
+    
+    
+    public SoundEffect BoomSound { get; private set; }
 
     public void Shoot()
     {
         if (Aimed && IsLoaded)
         {
-            
+            Core.Audio.PlaySoundEffect(BoomSound);
             ReloadTimer = MaxReloadTimer;
         }
     }
 
-    public Turret(Texture2D gunTexture,Texture2D target, float maxReloadTimer, Vector2 origin)
+    public Turret(Texture2D gunTexture,Texture2D target, SoundEffect boomSound, float maxReloadTimer, Vector2 origin)
     {
+        BoomSound = boomSound;
         MaxReloadTimer = maxReloadTimer;
         Position = Vector2.Zero;
         Origin = origin;
@@ -96,6 +102,7 @@ public class Turret
 
     public Turret(Turret other, Vector2 position, float maxRotation, float minRotation)
     {
+        BoomSound = other.BoomSound;
         Position = position;
         Origin = other.Origin;
         _gunTexture = other._gunTexture;

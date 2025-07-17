@@ -1,0 +1,29 @@
+
+184650__isaac200000__cannon1
+----------------------------
+purpose: medium naval Cannon firing
+Author: User Isaac200000 on Freesound.org
+Source: https://freesound.org/people/Isaac200000/sounds/184650/
+License, Creative Commons 0
+
+594215__steaq__big-steam-engine-perfect-loop-24bit-flac
+--------------------------
+modified: converted from flac to wav
+purpose: simulates a triple expansion steam engine (I do not know if this is actually triple expansion)
+Author: User steaq on Freesound.org
+source: https://freesound.org/people/steaq/sounds/594215/
+License: Creative Commons 0
+
+519008__sheyvan__water-explosion
+--------------------------
+purpose: shells splashing in the water
+Author: User sheyvan on Freesound.org
+source: https://freesound.org/people/Sheyvan/sounds/519008/
+License: Creative Commons 0
+
+753972__klankbeeld__coast-far-shipping-1106-am-220905_0526
+---------------------------------------
+Purpose: Maritime ambience
+Author: User Klankbeeld on Freesound.org
+source: https://freesound.org/people/klankbeeld/sounds/753972/
+License: Creative Commons 0

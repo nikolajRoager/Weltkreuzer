@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using MatrosEngine;
 using MatrosEngine.Particles;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace WeltKreuzer.Entities;
@@ -89,7 +91,7 @@ public class Ship
     
     
     public List<Turret> Turrets { get; private set; }
-
+    
 
     public void Shoot(ICollection<Particle> smoke, ParticleTemplate smokeTemplate, ICollection<Shell> shells)
     {

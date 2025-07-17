@@ -8,6 +8,7 @@ using MatrosEngine.Input;
 using MatrosEngine.Particles;
 using MatrosEngine.Scenes;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using WeltKreuzer.Entities;
@@ -25,6 +26,18 @@ public class LevelScene : Scene
     private Texture2D _speedIndicatorHandle;
 
     private Texture2D _wheel;
+
+
+    private SoundEffect _splashSound;
+
+    /// <summary>
+    /// Sound of the player's engine is handled in the scene, not the ship
+    /// </summary>
+    private SoundEffect _EngineSound;
+    private SoundEffectInstance _EngineSoundInstance;
+    
+    private SoundEffect _Ambience;
+    private SoundEffectInstance _AmbienceInstance;
     
     
     
@@ -64,10 +77,14 @@ public class LevelScene : Scene
         var aimingDot = Content.Load<Texture2D>("images/debugDot");
         
         
-        var _EmdenTurret = new Turret(Content.Load<Texture2D>("images/105mm"),Content.Load<Texture2D>("images/debugDot"),4,new Vector2(8,8));
+        SoundEffect CannonSound = Content.Load<SoundEffect>("Audio/184650__isaac200000__cannon1");
+        _splashSound = Content.Load<SoundEffect>("Audio/519008__sheyvan__water-explosion");
+        _EngineSound = Content.Load<SoundEffect>("Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac");
+        _EngineSoundInstance=Core.Audio.PlaySoundEffect(_EngineSound,0f,0,0,true);
         
-        _Emden = new Ship(Content.Load<Texture2D>("images/Emden"),Content.Load<Texture2D>("images/projectile"),new Vector2(200,200),0,_EmdenTurret);
         
+        _Ambience = Content.Load<SoundEffect>("Audio/753972__klankbeeld__coast-far-shipping-1106-am-220905_0526");
+        _AmbienceInstance=Core.Audio.PlaySoundEffect(_Ambience,1f,0,0,true);
         
         
         //Load a lot of pictures
@@ -79,7 +96,6 @@ public class LevelScene : Scene
         _foam = new LinkedList<Particle>();
         
         _shells = new LinkedList<Shell>();
-        _shells.AddLast(new Shell(Content.Load<Texture2D>("images/projectile"),new Vector2(400,400),new Vector2(20, 20),10));
         
         
         _powerIndicator= Content.Load<Texture2D>("images/powerIndicator");
@@ -89,7 +105,6 @@ public class LevelScene : Scene
         
         _font = Core.Content.Load<SpriteFont>("fonts/normalFont");
 
-        _powerIndicatorAngle = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
         
         //Load all ships into memory
         string shipFilePath = Path.Combine(Core.Content.RootDirectory, "ships/AllShips.xml");
@@ -133,7 +148,7 @@ public class LevelScene : Scene
                         }
                         else
                         {
-                            turretType = new Turret(Content.Load<Texture2D>("images/"+model),aimingDot,float.Parse(turret.Attribute("ReloadTime")?.Value ?? "4"),new Vector2(float.Parse(turret.Attribute("OriginX")?.Value ?? "0"),float.Parse(turret.Attribute("OriginY")?.Value ?? "0")));
+                            turretType = new Turret(Content.Load<Texture2D>("images/"+model),aimingDot,CannonSound ,float.Parse(turret.Attribute("ReloadTime")?.Value ?? "4"),new Vector2(float.Parse(turret.Attribute("OriginX")?.Value ?? "0"),float.Parse(turret.Attribute("OriginY")?.Value ?? "0")));
                             //Save for later re-usage
                             turrets[model] = turretType;
                             
@@ -160,6 +175,10 @@ public class LevelScene : Scene
         }
 
         _Emden = ships["Emden"];
+        
+        
+        _powerIndicatorAngle = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
+        
 
 
         base.LoadContent();
@@ -212,12 +231,13 @@ public class LevelScene : Scene
                 _foamTemplate.LifeTime, _foamTemplate.Friction, Vector2.Zero, Vector2.Zero));
                 
             _shells.Remove(shell);
-            //todo: Handle splas-down/hit detection
-            
-            
+            Core.Audio.PlaySoundEffect(_splashSound);
+
+
         }
-        
-        
+
+        _EngineSoundInstance.Volume = MathF.Abs(_Emden.PowerLevel) * 0.25f;
+        _EngineSoundInstance.Pitch = (MathF.Abs(_Emden.PowerLevel)-1) * 0.25f;
         
         _Emden.Update(gameTime);
         _Emden.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
