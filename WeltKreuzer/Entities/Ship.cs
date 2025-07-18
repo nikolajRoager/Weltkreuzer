@@ -13,6 +13,70 @@ public class Ship
     public Texture2D Texture { get; private set; }
     
     /// <summary>
+    /// How many frames for the ship sinking do we have
+    /// </summary>
+    public int SinkFrames { get; private set; }
+    
+    private List<Rectangle> _rectangles;
+
+    /// <summary>
+    /// Lengthwise compartments, there is always port and starboard compartments
+    /// </summary>
+    public int LengthCompartments;
+    public int[,] CompartmentsDamage;
+    
+    
+    /// <summary>
+    /// Gets total number of flooded compartments
+    /// </summary>
+    public int FloodedCompartments
+    {
+        get
+        {
+            int flooded=0;
+            foreach (var i in CompartmentsDamage)
+            {
+                if (i>=CompartmentMaxDamage)
+                    ++flooded;
+            }
+            return flooded;
+        }
+    }
+
+    public int UnbalancedCompartments
+    {
+        get
+        {
+            int portCompartmentsFlooded = 0;
+            for (int i = 0; i < LengthCompartments; i++)
+            {
+                portCompartmentsFlooded += CompartmentsDamage[i,0]==CompartmentMaxDamage ? 1 : 0;
+                portCompartmentsFlooded -= CompartmentsDamage[i,1]==CompartmentMaxDamage ? 1 : 0;
+            }
+            return Math.Abs(portCompartmentsFlooded);
+        }
+    }
+
+    /// <summary>
+    /// If more than half our compartments are flooded we are transfering to the uboot arm
+    /// </summary>
+    public int MaxFlooding => LengthCompartments;
+
+    
+    
+    /// <summary>
+    /// The ship is sinking or has sunk
+    /// </summary>
+    public bool IsSinking => FloodedCompartments >= MaxFlooding || UnbalancedCompartments >= LengthCompartments/2+1;
+    private bool _playingSinkingAnimation = false;
+    
+    
+    /// <summary>
+    /// Damage level which causes compartment to flood
+    /// </summary>
+    public int CompartmentMaxDamage = 5;
+    
+    /// <summary>
     /// texture of the shells fired by this ship. Each ship may use its own type of shell
     /// </summary>
     public Texture2D ShellTexture { get; private set; }
@@ -87,6 +151,16 @@ public class Ship
     
     public float FoamTimerMax;
     private float _foamTimer;
+ 
+    //Form going out from a sinking ship use a different timer
+    private float _sinkingFoamTimer;
+    
+    
+    /// <summary>
+    /// All ships take 2 seconds to go down
+    /// </summary>
+    private readonly float _maxSinkingTimer =2;
+    public float SinkingTimer { get; private set; }=2;
     
     
     
@@ -95,7 +169,6 @@ public class Ship
 
     public void Shoot(ICollection<Particle> smoke, ParticleTemplate smokeTemplate, ICollection<Shell> shells)
     {
-        Console.WriteLine("Fire");
         
         Random r = new Random();
         
@@ -104,15 +177,18 @@ public class Ship
             if (turret.IsLoaded && turret.Aimed)
             {
                 turret.Shoot();
-                Console.WriteLine("Boom");
                 {
                     
-                    //Angle offset factor, from -1 to 1 if power level is high (engine vibrations
+                    //Angle offset addition, from -1 to 1 if power level is high (engine vibrations
                     // -0.3 to 0.3 otherwise
                     float randomAngleOffset = 2f*(r.NextSingle()-0.5f);
+                    
+                    //+- 10% distance offset at high power, +-3% otherwise
+                    float randomDistanceOffset = 0.1f*(r.NextSingle()-0.5f);
                     if (PowerLevel < 4)
                     {
                         randomAngleOffset *= 0.3f;
+                        randomDistanceOffset*= 0.3f;
                     }
                     //May be +- 5 degree
                     randomAngleOffset *= 5*Single.Pi/180;
@@ -131,7 +207,7 @@ public class Ship
                     }
                     
                     //Spawn a shell moving really rather quick
-                    shells.Add(new Shell(ShellTexture,pos,gunFacingVector*ShellSpeed, turret.Distance/ShellSpeed));
+                    shells.Add(new Shell(ShellTexture,pos,gunFacingVector*ShellSpeed, (1+randomDistanceOffset)*turret.Distance/ShellSpeed));
                 }
             }
         }
@@ -139,7 +215,6 @@ public class Ship
     
     public bool AddPower(bool Up)
     {
-        Console.WriteLine(PowerLevel);
         if (Up)
         {
             if (PowerLevel < 4)
@@ -179,8 +254,14 @@ public class Ship
 
 
 
-    public Ship(Texture2D texture, Texture2D shellTexture, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction)
+    public Ship(Texture2D texture, Texture2D shellTexture, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction, int lengthCompartments, int sinkFrames)
     {
+        LengthCompartments=lengthCompartments;
+        CompartmentsDamage=new int[LengthCompartments,2];
+        for (int i = 0; i < LengthCompartments; i++)
+            for (int j = 0; j < 2; j++)
+                CompartmentsDamage[i,j]=0;
+        
         Texture = texture;
         ShellTexture = shellTexture;
         Turrets = turrets;
@@ -190,7 +271,14 @@ public class Ship
         TurnFriction = turnFriction;
         PortFriction = portFriction;
         ForwardFriction = forwardFriction;
+        SinkFrames = sinkFrames;
         
+        
+        _rectangles=new List<Rectangle>();
+        for (int i = 0; i < sinkFrames+1; ++i)
+        {
+            _rectangles.Add(new Rectangle(i*Texture.Width/(sinkFrames+1),0,Texture.Width/(sinkFrames+1),Texture.Height));
+        }
         
 
         Rotation = 0.0f;
@@ -199,71 +287,44 @@ public class Ship
         Forward = new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
         Port = new Vector2(-Forward.Y, Forward.X);
         
-        FunnnelSmokeTimerMax=0.1f;
+        FunnnelSmokeTimerMax=0.05f;
         _funnelSmokeTimer=FunnnelSmokeTimerMax;
         
         FoamTimerMax=0.1f;
         _foamTimer=FoamTimerMax;
+        _sinkingFoamTimer=FoamTimerMax;
         
     }
-    
-    /// <summary>
-    /// Default constructor, creates Emden
-    /// </summary>
-    /// <param name="texture"></param>
-    /// <param name="shellTexture"></param>
-    /// <param name="position"></param>
-    /// <param name="speed"></param>
-    /// <param name="turretTemplate"></param>
-    /// <param name="rotation"></param>
-    public Ship(Texture2D texture, Texture2D shellTexture, Vector2 position, float speed, Turret turretTemplate,float rotation=0)
+
+    public bool HitTest(Shell shell)
     {
-        
-        ShellTexture = shellTexture;
-        
-        Texture = texture;
-        Position = position;
-        Velocity = new Vector2(speed, 0);
+        var vecToShell = shell.Position - Position;
+        float distForward = Vector2.Dot(vecToShell, Forward);
+        float distPort = Vector2.Dot(vecToShell, Port);
 
-        Turrets = new List<Turret>()
+
+        if (distForward > -_rectangles[0].Width* 0.5f && distForward < _rectangles[0].Width* 0.5f
+                                                                    &&
+                                                                    distPort > -Texture.Height * 0.5f && distPort < Texture.Height * 0.5f
+           )
         {
-          new Turret(turretTemplate,new Vector2(-50,3),Single.Pi+0.5f,Single.Pi -1.5f),
-          new Turret(turretTemplate,new Vector2(-50,-3),Single.Pi+1.5f,Single.Pi-0.5f),
-          
-          new Turret(turretTemplate,new Vector2(-36,6),Single.Pi, Single.Pi-2),
-          new Turret(turretTemplate,new Vector2(-36,-6),Single.Pi+2,Single.Pi),
-          
-          new Turret(turretTemplate,new Vector2(0,7),Single.Pi*0.7f, Single.Pi*0.3f),
-          new Turret(turretTemplate,new Vector2(0,-7),-Single.Pi*0.3f, -Single.Pi*0.7f),
-          
-          new Turret(turretTemplate,new Vector2(36,6),2,0),
-          new Turret(turretTemplate,new Vector2(36,-6),0,-2),
-          
-          new Turret(turretTemplate,new Vector2(50,3),1.5f,-0.5f),
-          new Turret(turretTemplate,new Vector2(50,-3),0.5f,-1.5f),
+            //Test which compartment has been hit
+            int nCompartmentLength=(int)(distForward + _rectangles[0].Width* 0.5f) * LengthCompartments / _rectangles[0].Width;
+            if (distPort > 0) //Starboard hit
+            {
+                CompartmentsDamage[nCompartmentLength, 1]= Math.Min(CompartmentMaxDamage,
+                    CompartmentsDamage[nCompartmentLength, 1]+ 1);
+            }
+            else
+            {
+                CompartmentsDamage[nCompartmentLength, 0]= Math.Min(CompartmentMaxDamage,
+                    CompartmentsDamage[nCompartmentLength, 0]+ 1);
+            }
             
-        };
+            return true;
+        }
         
-        
-        Rotation = rotation;
-        Omega = 0.0f;
-        
-        Forward = new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
-        Port = new Vector2(-Forward.Y, Forward.X);
-
-        FunnelLocations = new ()
-        {
-            new Vector2(-2,0),
-            new Vector2(10,0),
-            new Vector2(24,0),
-        };
-        
-        FunnnelSmokeTimerMax=0.1f;
-        _funnelSmokeTimer=FunnnelSmokeTimerMax;
-        
-        FoamTimerMax=0.1f;
-        _foamTimer=FoamTimerMax;
-        
+        return false;
     }
 
     public void Update(GameTime time)
@@ -293,10 +354,28 @@ public class Ship
         //Apply to position, 1st degree motion only
         Position += Velocity * dt;
 
-        
-        foreach (var turret in Turrets)
-            turret.Update(time);
-        
+        if (!IsSinking)
+        {
+
+
+            foreach (var turret in Turrets)
+                turret.Update(time);
+        }
+        else
+        {
+            //Engine fail when sinking
+            PowerLevel = 0;
+            
+            //This is the first time we noticed we are sinking
+            if (!_playingSinkingAnimation)
+            {
+                _playingSinkingAnimation = true;
+
+            }
+
+            SinkingTimer -= dt;
+        }
+
     }
 
     /// <summary>
@@ -327,41 +406,83 @@ public class Ship
 
         //Subtract timer from smoke timer depending on power level
         _foamTimer -= dt*Math.Abs(ForwardSpeed/50) ;
-
-        if (_foamTimer < 0)
+        
+        if (_foamTimer < 0 && !(IsSinking && SinkingTimer <=0))
         {
-            particles.Add(new Particle(template.Source,Position+Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f+Port*10));
-            particles.Add(new Particle(template.Source,Position+Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f-Port*10));
             
-            particles.Add(new Particle(template.Source,Position-Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f+Port*10));
-            particles.Add(new Particle(template.Source,Position-Texture.Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f-Port*10));
+            particles.Add(new Particle(template.Source,Position+_rectangles[0].Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f+Port*10));
+            particles.Add(new Particle(template.Source,Position+_rectangles[0].Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f-Port*10));
+            
+            particles.Add(new Particle(template.Source,Position-_rectangles[0].Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f+Port*10));
+            particles.Add(new Particle(template.Source,Position-_rectangles[0].Width*Forward*0.5f,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f-Port*10));
             //Reset timer and make a puff of smoke
             _foamTimer =FoamTimerMax;
         }
-    }
 
-    
-    
-    public void Draw(SpriteBatch spriteBatch, GameTime time)
-    {
-        spriteBatch.Draw(
-            Texture,
-            Position, 
-            null,
-            Color.White,
-            Rotation,
-            new Vector2(Texture.Width*0.5f, Texture.Height*0.5f), 
-            1f,
-            SpriteEffects.None,
-            0.0f
-        );
-
-
-        foreach (var turret in Turrets)
+        //If is sinking, but has not slipped beneath the waves yet
+        if (IsSinking && SinkingTimer >0)
         {
-            turret.Draw(spriteBatch,Position+turret.Position.X*Forward+turret.Position.Y*Port,Rotation,time);
+            _sinkingFoamTimer -= dt*100;
+
+            if (_sinkingFoamTimer < 0)
+            {
+                Random r = new Random();
+                float X = (r.NextSingle()-0.5f)*_rectangles[0].Width;
+                float Y = (r.NextSingle()-0.5f)*_rectangles[0].Height;
+
+                var spawnLocation = X*Forward + Y*Port;
+ //               particles.Add(new Particle(template.Source,Position+spawnLocation,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f));
+                particles.Add(new Particle(template.Source,Position+spawnLocation,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f+Vector2.Normalize(spawnLocation)*0.5f));
+                
+                _sinkingFoamTimer=FoamTimerMax;
+            }
         }
     }
+
     
     
+    public void Draw(SpriteBatch spriteBatch, GameTime time,Vector2 cameraPosition)
+    {
+        if (!IsSinking)
+        {
+            spriteBatch.Draw(
+                Texture,
+                Position-cameraPosition, 
+                _rectangles[0],
+                Color.White,
+                Rotation,
+                new Vector2(_rectangles[0].Width*0.5f, Texture.Height*0.5f), 
+                1f,
+                SpriteEffects.None,
+                0.0f
+            );
+
+            foreach (var turret in Turrets)
+            {
+                turret.Draw(spriteBatch,Position+turret.Position.X*Forward+turret.Position.Y*Port,Rotation,time,cameraPosition);
+            }
+            
+        }
+        else if (SinkingTimer > 0)
+        {
+            int frame =SinkFrames-(int) (SinkFrames *SinkingTimer/_maxSinkingTimer);
+            
+            spriteBatch.Draw(
+                Texture,
+                Position-cameraPosition, 
+                _rectangles[frame],
+                Color.White,
+                Rotation,
+                new Vector2(_rectangles[0].Width*0.5f, Texture.Height*0.5f), 
+                1f,
+                SpriteEffects.None,
+                0.0f
+            );
+            if (frame < SinkFrames/2)
+                foreach (var turret in Turrets)
+                {
+                    turret.Draw(spriteBatch,Position+turret.Position.X*Forward+turret.Position.Y*Port,Rotation,time,cameraPosition);
+                }
+        }
+    }
 }

@@ -36,12 +36,12 @@ public class Shell
         }
     }
 
-    public void Draw(SpriteBatch spriteBatch)
+    public void Draw(SpriteBatch spriteBatch,Vector2 cameraPosition)
     {
         
         spriteBatch.Draw(
             _texture,
-            Position-new Vector2(_texture.Width*0.5f,_texture.Height*0.5f), 
+            Position-new Vector2(_texture.Width*0.5f,_texture.Height*0.5f)-cameraPosition, 
             null,
             Color.White,
             0,

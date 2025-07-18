@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ships>
-  <ship class="Emden" MaxThrust="9.6" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1">
+  <ship class="Emden" SinkFrames="5" MaxThrust="9.6" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1" compartmentsWidth="2" LengthCompartments="4">
     <funnel X="-2" Y="0"/>
     <funnel X="10" Y="0"/>
     <funnel X="24" Y="0"/>

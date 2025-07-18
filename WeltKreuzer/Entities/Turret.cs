@@ -161,7 +161,7 @@ public class Turret
         
     }
     
-    public void Draw(SpriteBatch spriteBatch, Vector2 globalPosition,float shipRotation, GameTime gameTime)
+    public void Draw(SpriteBatch spriteBatch, Vector2 globalPosition,float shipRotation, GameTime gameTime,Vector2 cameraPosition)
     {
         theta +=(float)gameTime.ElapsedGameTime.TotalSeconds;
 
@@ -171,7 +171,7 @@ public class Turret
         int phase = 0;
         spriteBatch.Draw(
             _gunTexture,
-            globalPosition, 
+            globalPosition-cameraPosition, 
             _sourceRectangles[phase],
             new Color((byte)255,(byte)255,(byte)255,(byte)255),
             globalRotation,
@@ -185,7 +185,7 @@ public class Turret
         {
             spriteBatch.Draw(
                 _target,
-                globalPosition+new Vector2(float.Cos(globalRotation),float.Sin(globalRotation))*Distance, 
+                globalPosition+new Vector2(float.Cos(globalRotation),float.Sin(globalRotation))*Distance-cameraPosition, 
                 null,
                 new Color((byte)255,(byte)255,(byte)255,(byte)255),
                 globalRotation,

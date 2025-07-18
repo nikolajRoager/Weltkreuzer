@@ -19,6 +19,8 @@ public class LevelScene : Scene
 {
     private Ship _Emden;
 
+    private Texture2D _EmdenCompartments;
+
     
     private Texture2D _powerIndicator;
     private Texture2D _powerIndicatorHandle;
@@ -26,6 +28,7 @@ public class LevelScene : Scene
     private Texture2D _speedIndicatorHandle;
 
     private Texture2D _wheel;
+    private Texture2D _shellTexture;
 
 
     private SoundEffect _splashSound;
@@ -77,6 +80,9 @@ public class LevelScene : Scene
         var aimingDot = Content.Load<Texture2D>("images/debugDot");
         
         
+
+        _EmdenCompartments=Content.Load<Texture2D>("images/EmdenCompartments");
+        
         SoundEffect CannonSound = Content.Load<SoundEffect>("Audio/184650__isaac200000__cannon1");
         _splashSound = Content.Load<SoundEffect>("Audio/519008__sheyvan__water-explosion");
         _EngineSound = Content.Load<SoundEffect>("Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac");
@@ -110,7 +116,7 @@ public class LevelScene : Scene
         string shipFilePath = Path.Combine(Core.Content.RootDirectory, "ships/AllShips.xml");
 
         
-        Texture2D shellTexture = Content.Load<Texture2D>("images/projectile");
+        _shellTexture = Content.Load<Texture2D>("images/projectile");
         
         
         Dictionary<string, Ship> ships = new Dictionary<string, Ship>();
@@ -168,8 +174,9 @@ public class LevelScene : Scene
                     float turnFriction = float.Parse(ship.Attribute("TurnFriction")?.Value ?? "1");
                     float portFriction = float.Parse(ship.Attribute("PortFriction")?.Value ?? "1");
                     float forwardFriction= float.Parse(ship.Attribute("ForwardFriction")?.Value ?? "0.1");
-                    
-                    ships.Add(Class ,new Ship(shipTexture,shellTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction));
+                    int lengthCompartments = int.Parse(ship.Attribute("LengthCompartments")?.Value ?? "1");
+                    int sinkFrames = int.Parse(ship.Attribute("SinkFrames")?.Value ?? "1");
+                    ships.Add(Class ,new Ship(shipTexture,_shellTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction,lengthCompartments,sinkFrames));
                 }
             }
         }
@@ -186,34 +193,58 @@ public class LevelScene : Scene
 
     public override void Update(GameTime gameTime)
     {
+        
+        //Control the Emden
+        if (!_Emden.IsSinking)
+        {
+            if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Up) || Core.Input.Keyboard.WasKeyJustPressed(Keys.W))
+            {
+                _Emden.AddPower(true);
+            }
 
-        if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Up) || Core.Input.Keyboard.WasKeyJustPressed(Keys.W))
-        {
-            _Emden.AddPower(true);
-        }
-        if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Down) || Core.Input.Keyboard.WasKeyJustPressed(Keys.S))
-        {
-            _Emden.AddPower(false);
-        }
+            if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Down) || Core.Input.Keyboard.WasKeyJustPressed(Keys.S))
+            {
+                _Emden.AddPower(false);
+            }
 
-        _Emden.Rudder = 0;
-        if (Core.Input.Keyboard.IsKeyDown(Keys.Left) || Core.Input.Keyboard.IsKeyDown(Keys.A))
-        {
-            --_Emden.Rudder;
-        }
-        if (Core.Input.Keyboard.IsKeyDown(Keys.Right) || Core.Input.Keyboard.IsKeyDown(Keys.D))
-        {
-            ++_Emden.Rudder;
+            _Emden.Rudder = 0;
+            if (Core.Input.Keyboard.IsKeyDown(Keys.Left) || Core.Input.Keyboard.IsKeyDown(Keys.A))
+            {
+                --_Emden.Rudder;
+            }
+
+            if (Core.Input.Keyboard.IsKeyDown(Keys.Right) || Core.Input.Keyboard.IsKeyDown(Keys.D))
+            {
+                ++_Emden.Rudder;
+            }
+
+            Vector2 target = Core.Input.Mouse.Position.ToVector2() -
+                             new Vector2(Core.GraphicsDevice.Viewport.Width * 0.5f,
+                                 Core.GraphicsDevice.Viewport.Height * 0.5f) +
+                             _Emden.Position;
+
+
+            _Emden.SetTarget(target);
+
+            if (Core.Input.Mouse.WasButtonJustPressed(MouseButton.Left))
+            {
+                //Check if the mouse is within the screen
+
+                var mousePosition = Core.Input.Mouse.Position.ToVector2();
+                if (mousePosition.X < Core.GraphicsDevice.Viewport.Width &&
+                    mousePosition.Y < Core.GraphicsDevice.Viewport.Height && mousePosition.X > 0 && mousePosition.Y > 0)
+                {
+                    //_Emden.Shoot(_smoke,_smokeTemplate,_shells);
+
+                    //TEMP, spawn a shell at the mouse
+                    _shells.AddLast(new Shell(_shellTexture, target, Vector2.Zero, 1));
+                }
+
+            }
         }
         
-        Vector2 target = Core.Input.Mouse.Position.ToVector2();
+        _Emden.Update(gameTime);
         
-        _Emden.SetTarget(target);
-
-        if (Core.Input.Mouse.WasButtonJustPressed(MouseButton.Left))
-        {
-            _Emden.Shoot(_smoke,_smokeTemplate,_shells);
-        }
 
         List<Shell> shellsToRemove=new();
 
@@ -227,11 +258,15 @@ public class LevelScene : Scene
 
         foreach (var shell in shellsToRemove)
         {
+            _Emden.HitTest(shell);
+            
+            //Splashed down in wate
             _foam.AddLast(new Particle(_foamTemplate.Source, shell.Position, _foamTemplate.Nframes,
                 _foamTemplate.LifeTime, _foamTemplate.Friction, Vector2.Zero, Vector2.Zero));
-                
-            _shells.Remove(shell);
+            
             Core.Audio.PlaySoundEffect(_splashSound);
+            
+            _shells.Remove(shell);
 
 
         }
@@ -239,7 +274,6 @@ public class LevelScene : Scene
         _EngineSoundInstance.Volume = MathF.Abs(_Emden.PowerLevel) * 0.25f;
         _EngineSoundInstance.Pitch = (MathF.Abs(_Emden.PowerLevel)-1) * 0.25f;
         
-        _Emden.Update(gameTime);
         _Emden.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
         _Emden.SpawnFoam(_foam,_foamTemplate,gameTime);
         
@@ -285,19 +319,32 @@ public class LevelScene : Scene
         Core.GraphicsDevice.Clear(Color.LightBlue);
         
         Core.SpriteBatch.Begin();
+
+        Vector2 cameraOffset = -new Vector2(Core.GraphicsDevice.Viewport.Width *0.5f, Core.GraphicsDevice.Viewport.Height *0.5f);
+        
         
         //Draw one kind at the time to reduce texture swapping
         foreach (var foam in _foam)
-            foam.Draw(Core.SpriteBatch);
+            foam.Draw(Core.SpriteBatch,_Emden.Position+cameraOffset );
         
-        _Emden.Draw(Core.SpriteBatch,gameTime);
+        _Emden.Draw(Core.SpriteBatch,gameTime,_Emden.Position+cameraOffset);
         
 
         
         foreach (var smoke in _smoke)
-            smoke.Draw(Core.SpriteBatch);
+            smoke.Draw(Core.SpriteBatch,_Emden.Position+cameraOffset);
         
+        
+        foreach (var shell in  _shells)
+        {
+            shell.Draw(Core.SpriteBatch,_Emden.Position+cameraOffset);
+        }
+
+        
+        //Now draw the UI
+        //First the speed and power and turning indicator in the bottom left
         Core.SpriteBatch.Draw(_powerIndicator,new Vector2(0,Core.GraphicsDevice.Viewport.Height-_powerIndicator.Height), Color.White);
+
 
         float powerIndicatorTarget = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
         if (powerIndicatorTarget > _powerIndicatorAngle)
@@ -375,12 +422,42 @@ public class LevelScene : Scene
             SpriteEffects.None,
             0.0f
         );
-
-        foreach (var shell in  _shells)
+ 
+        
+        
+        //Draw the compartments with damages
+        for (int x = 0; x < _Emden.LengthCompartments; ++x)
+        for (int y = 0; y < 2; ++y)
         {
-            shell.Draw(Core.SpriteBatch);
+            int dmg = _Emden.CompartmentsDamage[x, y];
+            Color compartmentColor = dmg==_Emden.CompartmentMaxDamage?Color.Blue : new Color(255,255*(_Emden.CompartmentMaxDamage-dmg)/_Emden.CompartmentMaxDamage,255*(_Emden.CompartmentMaxDamage-dmg)/_Emden.CompartmentMaxDamage);
+            
+            Core.SpriteBatch.Draw(
+                _EmdenCompartments,
+                new Vector2(Core.GraphicsDevice.Viewport.Width-20-_EmdenCompartments.Width+x*_EmdenCompartments.Width/(float)_Emden.LengthCompartments,y*_EmdenCompartments.Height*0.5f+50), 
+                new Rectangle(x*_EmdenCompartments.Width/_Emden.LengthCompartments,y*_EmdenCompartments.Height/2,_EmdenCompartments.Width/_Emden.LengthCompartments,_EmdenCompartments.Height/2),
+                compartmentColor,
+                0,
+                Vector2.Zero, 
+                1f,
+                SpriteEffects.None,
+                0.0f
+            );
+            
         }
-
+        
+        Core.SpriteBatch.DrawString(_font, $"Flooding: {_Emden.FloodedCompartments}/{_Emden.MaxFlooding}", 
+            new Vector2(Core.GraphicsDevice.Viewport.Width-20-_EmdenCompartments.Width,_EmdenCompartments.Height+50) 
+            , Color.Black, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
+ 
+        Core.SpriteBatch.DrawString(_font, $"Capsizing: {_Emden.UnbalancedCompartments}/{(_Emden.LengthCompartments)/2+1}", 
+            new Vector2(Core.GraphicsDevice.Viewport.Width-20-_EmdenCompartments.Width,_EmdenCompartments.Height+80) 
+            , Color.Black, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
+        
+        
+        
+        
+        //Draw aiming assistance: number of loaded guns
         int loadedGuns = 0;
         foreach (var turret in _Emden.Turrets)
         {
@@ -389,7 +466,6 @@ public class LevelScene : Scene
                 ++loadedGuns;
             }
         }
-        
         Vector2 target = Core.Input.Mouse.Position.ToVector2();
         
         Core.SpriteBatch.DrawString(_font, $"{loadedGuns}", target+new Vector2(0,-36), Color.Red, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
