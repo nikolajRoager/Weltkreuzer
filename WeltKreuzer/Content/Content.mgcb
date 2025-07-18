@@ -31,6 +31,12 @@
 /processorParam:Quality=Best
 /build:Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac.wav
 
+#begin Audio/621002__samsterbirdies__cannon-explosion-sound-3.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:Audio/621002__samsterbirdies__cannon-explosion-sound-3.wav
+
 #begin Audio/753972__klankbeeld__coast-far-shipping-1106-am-220905_0526.wav
 /importer:WavImporter
 /processor:SoundEffectProcessor
@@ -117,6 +123,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:images/EmdenCompartments.png
+
+#begin images/Explosion.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:images/Explosion.png
 
 #begin images/foam.png
 /importer:TextureImporter

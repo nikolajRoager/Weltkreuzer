@@ -18,6 +18,7 @@ namespace WeltKreuzer.Scenes;
 public class LevelScene : Scene
 {
     private Ship _Emden;
+    private LinkedList<Ship> _EnemyShips;
 
     private Texture2D _EmdenCompartments;
 
@@ -36,11 +37,13 @@ public class LevelScene : Scene
     /// <summary>
     /// Sound of the player's engine is handled in the scene, not the ship
     /// </summary>
-    private SoundEffect _EngineSound;
-    private SoundEffectInstance _EngineSoundInstance;
+    private SoundEffect _engineSound;
+    private SoundEffectInstance _engineSoundInstance;
     
-    private SoundEffect _Ambience;
-    private SoundEffectInstance _AmbienceInstance;
+    private SoundEffect _ambience;
+    private SoundEffectInstance _ambienceInstance;
+
+    private SoundEffect _shellExplosionSound;
     
     
     
@@ -53,9 +56,18 @@ public class LevelScene : Scene
     
     /// <summary>
     /// Linked list, for easier deletion of dead particles, a deque would be better
+    /// I use seperate lists, so we can draw particles seperately based on their type (reduce texture swapping, improve performance, so I have heard)
     /// </summary>
     private LinkedList<Particle> _smoke;
-    
+    /// <summary>
+    /// Linked list, for easier deletion of dead particles, a deque would be better
+    /// I use seperate lists, so we can draw particles seperately based on their type (reduce texture swapping, improve performance, so I have heard)
+    /// </summary>
+    private LinkedList<Particle> _explosions;
+    /// <summary>
+    /// Linked list, for easier deletion of dead particles, a deque would be better
+    /// I use seperate lists, so we can draw particles seperately based on their type (reduce texture swapping, improve performance, so I have heard)
+    /// </summary>
     private LinkedList<Particle> _foam;
 
     /// <summary>
@@ -66,14 +78,25 @@ public class LevelScene : Scene
     
     public override void Initialize()
     {
+        _smoke = new LinkedList<Particle>();
+        _foam = new LinkedList<Particle>();
+        _explosions=new LinkedList<Particle>();
+        _shells = new LinkedList<Shell>();
+        _EnemyShips = new LinkedList<Ship>();
+        
         // LoadContent is called during base.Initialize().
         base.Initialize();
     }
 
     
+    private ParticleTemplate _explosionTemplate;
     private ParticleTemplate _smokeTemplate;
     private ParticleTemplate _foamTemplate;
-    
+
+    public LevelScene()
+    {
+    }
+
     public override void LoadContent()
     {
 
@@ -82,26 +105,26 @@ public class LevelScene : Scene
         
 
         _EmdenCompartments=Content.Load<Texture2D>("images/EmdenCompartments");
+
+        _shellExplosionSound = Content.Load<SoundEffect>("Audio/621002__samsterbirdies__cannon-explosion-sound-3");
         
         SoundEffect CannonSound = Content.Load<SoundEffect>("Audio/184650__isaac200000__cannon1");
         _splashSound = Content.Load<SoundEffect>("Audio/519008__sheyvan__water-explosion");
-        _EngineSound = Content.Load<SoundEffect>("Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac");
-        _EngineSoundInstance=Core.Audio.PlaySoundEffect(_EngineSound,0f,0,0,true);
+        _engineSound = Content.Load<SoundEffect>("Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac");
+        _engineSoundInstance=Core.Audio.PlaySoundEffect(_engineSound,0f,0,0,true);
         
         
-        _Ambience = Content.Load<SoundEffect>("Audio/753972__klankbeeld__coast-far-shipping-1106-am-220905_0526");
-        _AmbienceInstance=Core.Audio.PlaySoundEffect(_Ambience,1f,0,0,true);
+        _ambience = Content.Load<SoundEffect>("Audio/753972__klankbeeld__coast-far-shipping-1106-am-220905_0526");
+        _ambienceInstance=Core.Audio.PlaySoundEffect(_ambience,1f,0,0,true);
         
         
         //Load a lot of pictures
         _smokeTemplate = new ParticleTemplate(Content.Load<Texture2D>("images/smoke"),4,4,0.2f,new Vector2(100,100));
-        _smoke = new LinkedList<Particle>();
         
         
         _foamTemplate = new ParticleTemplate(Content.Load<Texture2D>("images/foam"),4,2,0.5f,new Vector2(0,0));
-        _foam = new LinkedList<Particle>();
         
-        _shells = new LinkedList<Shell>();
+        _explosionTemplate= new ParticleTemplate(Content.Load<Texture2D>("images/Explosion"),4,1,0.5f,new Vector2(100,100));
         
         
         _powerIndicator= Content.Load<Texture2D>("images/powerIndicator");
@@ -110,7 +133,6 @@ public class LevelScene : Scene
         _wheel = Content.Load<Texture2D>("images/Wheel");
         
         _font = Core.Content.Load<SpriteFont>("fonts/normalFont");
-
         
         //Load all ships into memory
         string shipFilePath = Path.Combine(Core.Content.RootDirectory, "ships/AllShips.xml");
@@ -176,13 +198,14 @@ public class LevelScene : Scene
                     float forwardFriction= float.Parse(ship.Attribute("ForwardFriction")?.Value ?? "0.1");
                     int lengthCompartments = int.Parse(ship.Attribute("LengthCompartments")?.Value ?? "1");
                     int sinkFrames = int.Parse(ship.Attribute("SinkFrames")?.Value ?? "1");
-                    ships.Add(Class ,new Ship(shipTexture,_shellTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction,lengthCompartments,sinkFrames));
+                    int compartmentMaxDamage = int.Parse(ship.Attribute("CompartmentMaxDamage")?.Value ?? "1");
+                    ships.Add(Class ,new Ship(shipTexture,_shellTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction,lengthCompartments,sinkFrames,compartmentMaxDamage));
                 }
             }
         }
 
-        _Emden = ships["Emden"];
-        
+        _Emden = ships["Emden"].Clone();
+        _EnemyShips.AddLast(ships["Emden"].Clone());
         
         _powerIndicatorAngle = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
         
@@ -234,16 +257,15 @@ public class LevelScene : Scene
                 if (mousePosition.X < Core.GraphicsDevice.Viewport.Width &&
                     mousePosition.Y < Core.GraphicsDevice.Viewport.Height && mousePosition.X > 0 && mousePosition.Y > 0)
                 {
-                    //_Emden.Shoot(_smoke,_smokeTemplate,_shells);
+                    _Emden.Shoot(_smoke,_smokeTemplate,_shells);
 
                     //TEMP, spawn a shell at the mouse
-                    _shells.AddLast(new Shell(_shellTexture, target, Vector2.Zero, 1));
+                    //_shells.AddLast(new Shell(_shellTexture, target, Vector2.Zero, 1));
                 }
 
             }
         }
         
-        _Emden.Update(gameTime);
         
 
         List<Shell> shellsToRemove=new();
@@ -258,28 +280,67 @@ public class LevelScene : Scene
 
         foreach (var shell in shellsToRemove)
         {
-            _Emden.HitTest(shell);
+            bool hit = _Emden.HitTest(shell);
+
+            foreach (var ship in _EnemyShips)
+            {
+                hit |= ship.HitTest(shell);
+            }
+
+            if (hit)
+            {
+                //Play boom
+                Core.Audio.PlaySoundEffect(_shellExplosionSound);
+                _explosions.AddLast(new Particle(_explosionTemplate.Source, shell.Position, _explosionTemplate.Nframes,
+                    _explosionTemplate.LifeTime, _explosionTemplate.Friction, Vector2.Zero, Vector2.Zero));
+
+            }
+            else
+            {
+                //Splashed down in wate
+                _foam.AddLast(new Particle(_foamTemplate.Source, shell.Position, _foamTemplate.Nframes,
+                    _foamTemplate.LifeTime, _foamTemplate.Friction, Vector2.Zero, Vector2.Zero));
             
-            //Splashed down in wate
-            _foam.AddLast(new Particle(_foamTemplate.Source, shell.Position, _foamTemplate.Nframes,
-                _foamTemplate.LifeTime, _foamTemplate.Friction, Vector2.Zero, Vector2.Zero));
-            
-            Core.Audio.PlaySoundEffect(_splashSound);
+                Core.Audio.PlaySoundEffect(_splashSound);
+            }
             
             _shells.Remove(shell);
 
 
         }
 
-        _EngineSoundInstance.Volume = MathF.Abs(_Emden.PowerLevel) * 0.25f;
-        _EngineSoundInstance.Pitch = (MathF.Abs(_Emden.PowerLevel)-1) * 0.25f;
+        _engineSoundInstance.Volume = MathF.Abs(_Emden.PowerLevel) * 0.25f;
+        _engineSoundInstance.Pitch = (MathF.Abs(_Emden.PowerLevel)-1) * 0.25f;
         
         _Emden.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
+        _Emden.Update(gameTime);
         _Emden.SpawnFoam(_foam,_foamTemplate,gameTime);
+
+        foreach (Ship ship in _EnemyShips)
+        {
+            ship.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
+            ship.Update(gameTime);
+            ship.SpawnFoam(_foam,_foamTemplate,gameTime);
+        }
         
         
         //Update particles, and remove dead once
         List<Particle> toRemove = new List<Particle>();
+ 
+        foreach (var explosion in _explosions)
+        {
+            explosion.Update(gameTime);
+            if (explosion.Dead)
+            {
+                toRemove.Add(explosion);
+            }
+        }
+        foreach (var p in toRemove)
+        {
+            _explosions.Remove(p);
+        }
+        
+        toRemove = new List<Particle>();
         
         foreach (var smoke in _smoke)
         {
@@ -329,11 +390,17 @@ public class LevelScene : Scene
         
         _Emden.Draw(Core.SpriteBatch,gameTime,_Emden.Position+cameraOffset);
         
+        foreach (Ship ship in _EnemyShips)
+        {
+            ship.Draw(Core.SpriteBatch,gameTime,_Emden.Position+cameraOffset);
+        }
 
         
         foreach (var smoke in _smoke)
             smoke.Draw(Core.SpriteBatch,_Emden.Position+cameraOffset);
         
+        foreach (var explosion in _explosions)
+            explosion.Draw(Core.SpriteBatch,_Emden.Position+cameraOffset);
         
         foreach (var shell in  _shells)
         {

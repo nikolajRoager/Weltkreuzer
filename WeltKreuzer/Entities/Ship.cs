@@ -74,7 +74,7 @@ public class Ship
     /// <summary>
     /// Damage level which causes compartment to flood
     /// </summary>
-    public int CompartmentMaxDamage = 5;
+    public int CompartmentMaxDamage = 3;
     
     /// <summary>
     /// texture of the shells fired by this ship. Each ship may use its own type of shell
@@ -147,6 +147,13 @@ public class Ship
     /// Number of seconds until the next puff
     /// </summary>
     private float _funnelSmokeTimer;
+
+
+    /// <summary>
+    /// Number of second betwixt fire from damaged compartments
+    /// </summary>
+    public float DamageCompartmentFireTimerMax=0.05f;
+    private float _damageCompartmentFireTimer;
 
     
     public float FoamTimerMax;
@@ -254,8 +261,9 @@ public class Ship
 
 
 
-    public Ship(Texture2D texture, Texture2D shellTexture, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction, int lengthCompartments, int sinkFrames)
+    public Ship(Texture2D texture, Texture2D shellTexture, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction, int lengthCompartments, int sinkFrames, int compartmentMaxDamage)
     {
+        CompartmentMaxDamage = compartmentMaxDamage;
         LengthCompartments=lengthCompartments;
         CompartmentsDamage=new int[LengthCompartments,2];
         for (int i = 0; i < LengthCompartments; i++)
@@ -289,11 +297,24 @@ public class Ship
         
         FunnnelSmokeTimerMax=0.05f;
         _funnelSmokeTimer=FunnnelSmokeTimerMax;
+
+        DamageCompartmentFireTimerMax = 0.1f;
+        _damageCompartmentFireTimer=DamageCompartmentFireTimerMax;
         
         FoamTimerMax=0.1f;
         _foamTimer=FoamTimerMax;
         _sinkingFoamTimer=FoamTimerMax;
         
+    }
+
+    public Ship Clone()
+    {
+        var clonedTurrets = new List<Turret>();
+        foreach (var turret in Turrets)
+        {
+            clonedTurrets.Add(turret.Clone());
+        }
+        return new Ship(Texture,ShellTexture,FunnelLocations,clonedTurrets,MaxThrust,RudderTorquePerSpeed,TurnFriction,PortFriction,ForwardFriction,LengthCompartments,SinkFrames,CompartmentMaxDamage);
     }
 
     public bool HitTest(Shell shell)
@@ -388,16 +409,48 @@ public class Ship
 
         //Faster ships make more foam
         _funnelSmokeTimer -= dt * Math.Abs(PowerLevel) * 0.25f;
+        _damageCompartmentFireTimer -= dt;
 
-        if (_funnelSmokeTimer < 0 && FunnelLocations.Count>0)
+        if (!IsSinking || SinkingTimer> 0)
         {
-            Random r = new Random();
-            
-            var funnel = FunnelLocations[r.Next(FunnelLocations.Count)];
-            
-            particles.Add(new Particle(template.Source,Position+funnel.X*Forward+funnel.Y*Port,template.Nframes,template.LifeTime, template.Friction,template.Wind,Velocity*0.5f));
-            //Reset timer and make a puff of smoke
-            _funnelSmokeTimer=FunnnelSmokeTimerMax;
+            if (_funnelSmokeTimer < 0 && FunnelLocations.Count > 0)
+            {
+                Random r = new Random();
+
+                var funnel = FunnelLocations[r.Next(FunnelLocations.Count)];
+
+                particles.Add(new Particle(template.Source, Position + funnel.X * Forward + funnel.Y * Port,
+                    template.Nframes, template.LifeTime, template.Friction, template.Wind, Velocity * 0.5f));
+                //Reset timer and make a puff of smoke
+                _funnelSmokeTimer = FunnnelSmokeTimerMax;
+            }
+
+            if (_damageCompartmentFireTimer < 0)
+            {
+                //Each compartment has a dmg/max damage chance of spawning smoke
+                Random r = new Random();
+
+                for (int y = 0; y < 2; ++y)
+                for (int x = 0; x < LengthCompartments; ++x)
+                {
+                    int roll = r.Next(0, CompartmentMaxDamage);
+                    if (roll < CompartmentsDamage[x, y])
+                    {
+                        var pos = Position
+                                  - _rectangles[0].Width * 0.5f * Forward
+                                  - _rectangles[0].Height * 0.5f * Port
+                                  + (x + r.NextSingle()) * Forward * _rectangles[0].Width / LengthCompartments
+                                  + (y + r.NextSingle()) * Port * _rectangles[0].Height * 0.5f
+                            ;
+
+                        particles.Add(new Particle(template.Source, pos, template.Nframes, template.LifeTime,
+                            template.Friction, template.Wind, Velocity * 0.5f));
+
+                    }
+                }
+
+                _damageCompartmentFireTimer = DamageCompartmentFireTimerMax;
+            }
         }
     }
     public void SpawnFoam(ICollection<Particle> particles, ParticleTemplate template, GameTime time)

@@ -75,6 +75,11 @@ public class Turret
         }
     }
 
+    public Turret Clone()
+    {
+        return new Turret(this,Position,MaxRotation,MinRotation);
+    }
+
     public Turret(Texture2D gunTexture,Texture2D target, SoundEffect boomSound, float maxReloadTimer, Vector2 origin)
     {
         BoomSound = boomSound;

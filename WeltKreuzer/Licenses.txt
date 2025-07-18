@@ -27,3 +27,10 @@ Purpose: Maritime ambience
 Author: User Klankbeeld on Freesound.org
 source: https://freesound.org/people/klankbeeld/sounds/753972/
 License: Creative Commons 0
+
+621002__samsterbirdies__cannon-explosion-sound-3.wav
+----------------------------------------------------
+purpose: shell hit ship
+Author: User SamsterBirdies on Freesound.org
+Source: https://freesound.org/people/SamsterBirdies/sounds/621002/
+License: Creative Commons 0 

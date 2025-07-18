@@ -45,12 +45,12 @@ public class Particle
         Age += dt;
     }
 
-    public void Draw(SpriteBatch spriteBatch)
+    public void Draw(SpriteBatch spriteBatch,Vector2 cameraPosition)
     {
         int phase = Math.Max(0, Math.Min((int)(Age * _sourceRectangles.Count / LifeTime), _sourceRectangles.Count - 1));
         spriteBatch.Draw(
             Source,
-            Position, 
+            Position-cameraPosition, 
             _sourceRectangles[phase],
             new Color((byte)255,(byte)255,(byte)255,(byte)Math.Max(0,128*(LifeTime-Age)/LifeTime)),
             0,
