@@ -10,6 +10,8 @@ namespace WeltKreuzer.Entities;
 
 public class Ship
 {
+    public Texture2D DirectionMarker { get; private set; }
+    
     public Texture2D Texture { get; private set; }
     
     /// <summary>
@@ -168,11 +170,19 @@ public class Ship
     /// </summary>
     private readonly float _maxSinkingTimer =2;
     public float SinkingTimer { get; private set; }=2;
+
+    public bool IsSunk => IsSinking && SinkingTimer < 0;
     
     
     
     public List<Turret> Turrets { get; private set; }
     
+    
+    public Captain MyCaptain { get; set; }
+    
+    
+    //Shall the ship shoot this update cycle
+    public bool ShallShoot { get; set; } = false;
 
     public void Shoot(ICollection<Particle> smoke, ParticleTemplate smokeTemplate, ICollection<Shell> shells)
     {
@@ -261,8 +271,14 @@ public class Ship
 
 
 
-    public Ship(Texture2D texture, Texture2D shellTexture, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction, int lengthCompartments, int sinkFrames, int compartmentMaxDamage)
+    public Ship(Texture2D texture, Texture2D shellTexture, Texture2D directionMarker, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction, int lengthCompartments, int sinkFrames, int compartmentMaxDamage, Captain myCaptain)
     {
+        MyCaptain = myCaptain;
+        myCaptain.TakeCommand(this);
+        DirectionMarker = directionMarker;
+        
+        //Start at cruising speed
+        PowerLevel = 3;
         CompartmentMaxDamage = compartmentMaxDamage;
         LengthCompartments=lengthCompartments;
         CompartmentsDamage=new int[LengthCompartments,2];
@@ -295,7 +311,7 @@ public class Ship
         Forward = new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
         Port = new Vector2(-Forward.Y, Forward.X);
         
-        FunnnelSmokeTimerMax=0.05f;
+        FunnnelSmokeTimerMax=0.2f;
         _funnelSmokeTimer=FunnnelSmokeTimerMax;
 
         DamageCompartmentFireTimerMax = 0.1f;
@@ -307,14 +323,18 @@ public class Ship
         
     }
 
-    public Ship Clone()
+    public Ship Clone(Captain newCaptain,Vector2 position, float rotation)
     {
         var clonedTurrets = new List<Turret>();
         foreach (var turret in Turrets)
         {
             clonedTurrets.Add(turret.Clone());
         }
-        return new Ship(Texture,ShellTexture,FunnelLocations,clonedTurrets,MaxThrust,RudderTorquePerSpeed,TurnFriction,PortFriction,ForwardFriction,LengthCompartments,SinkFrames,CompartmentMaxDamage);
+        var Out = new Ship(Texture,ShellTexture,DirectionMarker,FunnelLocations,clonedTurrets,MaxThrust,RudderTorquePerSpeed,TurnFriction,PortFriction,ForwardFriction,LengthCompartments,SinkFrames,CompartmentMaxDamage,newCaptain);
+        Out.Position=position;
+        Out.Rotation=rotation;
+        
+        return Out;
     }
 
     public bool HitTest(Shell shell)
@@ -348,9 +368,20 @@ public class Ship
         return false;
     }
 
-    public void Update(GameTime time)
+    public void Update(GameTime time,ICollection<Particle> smoke, ParticleTemplate smokeTemplate, ICollection<Shell> shells, Ship PlayerShip, IEnumerable<Ship> EnemyShips)
     {
         float dt = (float)time.ElapsedGameTime.TotalSeconds;
+        
+        MyCaptain.ViewShips(PlayerShip,EnemyShips);
+        MyCaptain.Control();
+
+        if (ShallShoot)
+        {
+            ShallShoot=false;
+            Shoot(smoke,smokeTemplate,shells);
+        }
+        
+        
         Forward = new Vector2(MathF.Cos(Rotation), MathF.Sin(Rotation));
         Port = new Vector2(-Forward.Y, Forward.X);
         
@@ -363,9 +394,11 @@ public class Ship
         Velocity -= forwardVelocity * ForwardFriction*dt;
         //Starboard friction works too, it is just negative port friction
         Velocity -= portVelocity * PortFriction*dt;
-        
+
+
+        float DamageSpeedReduction = (MaxFlooding-FloodedCompartments) / (float)(MaxFlooding);
         //Apply forward thrust
-        Velocity += Forward * dt * MaxThrust*PowerLevel*0.25f;
+        Velocity += Forward * dt * MaxThrust*PowerLevel*0.25f*DamageSpeedReduction;
 
         Omega += ForwardSpeed*RudderTorquePerSpeed*dt*Rudder;
         
@@ -408,7 +441,7 @@ public class Ship
         float dt = (float)time.ElapsedGameTime.TotalSeconds;
 
         //Faster ships make more foam
-        _funnelSmokeTimer -= dt * Math.Abs(PowerLevel) * 0.25f;
+        _funnelSmokeTimer -= dt * Math.Abs(PowerLevel) * 0.25f*FunnelLocations.Count;
         _damageCompartmentFireTimer -= dt;
 
         if (!IsSinking || SinkingTimer> 0)
@@ -514,6 +547,9 @@ public class Ship
             {
                 turret.Draw(spriteBatch,Position+turret.Position.X*Forward+turret.Position.Y*Port,Rotation,time,cameraPosition);
             }
+            
+            //My captain may have some debug drawing functions
+            MyCaptain.Draw(spriteBatch,DirectionMarker,Position-cameraPosition);
             
         }
         else if (SinkingTimer > 0)

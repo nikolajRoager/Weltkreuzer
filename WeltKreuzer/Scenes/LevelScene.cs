@@ -140,6 +140,8 @@ public class LevelScene : Scene
         
         _shellTexture = Content.Load<Texture2D>("images/projectile");
         
+        var directionTexture = Content.Load<Texture2D>("images/directionMarker");
+        
         
         Dictionary<string, Ship> ships = new Dictionary<string, Ship>();
         Dictionary<string, Turret> turrets = new Dictionary<string, Turret>();
@@ -199,13 +201,19 @@ public class LevelScene : Scene
                     int lengthCompartments = int.Parse(ship.Attribute("LengthCompartments")?.Value ?? "1");
                     int sinkFrames = int.Parse(ship.Attribute("SinkFrames")?.Value ?? "1");
                     int compartmentMaxDamage = int.Parse(ship.Attribute("CompartmentMaxDamage")?.Value ?? "1");
-                    ships.Add(Class ,new Ship(shipTexture,_shellTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction,lengthCompartments,sinkFrames,compartmentMaxDamage));
+                    ships.Add(Class ,new Ship(shipTexture,_shellTexture,directionTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction,lengthCompartments,sinkFrames,compartmentMaxDamage,new Captain()));
                 }
             }
         }
 
-        _Emden = ships["Emden"].Clone();
-        _EnemyShips.AddLast(ships["Emden"].Clone());
+        //Make sure Von Mücke (The player) is in charge of Emden
+        _Emden = ships["Emden"].Clone(new VonMucke(),Vector2.Zero, 0);
+        
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(400,200),0));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(200,200),0));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(0,200),0));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(600,200),0));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(800,200),0));
         
         _powerIndicatorAngle = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
         
@@ -217,56 +225,25 @@ public class LevelScene : Scene
     public override void Update(GameTime gameTime)
     {
         
-        //Control the Emden
-        if (!_Emden.IsSinking)
+        _Emden.Update(gameTime,_smoke,_smokeTemplate,_shells,_Emden,_EnemyShips);
+        _Emden.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
+        _Emden.SpawnFoam(_foam,_foamTemplate,gameTime);
+        
+        
+        List<Ship> shipsToRemove = new List<Ship>();
+
+        foreach (Ship ship in _EnemyShips)
         {
-            if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Up) || Core.Input.Keyboard.WasKeyJustPressed(Keys.W))
-            {
-                _Emden.AddPower(true);
-            }
-
-            if (Core.Input.Keyboard.WasKeyJustPressed(Keys.Down) || Core.Input.Keyboard.WasKeyJustPressed(Keys.S))
-            {
-                _Emden.AddPower(false);
-            }
-
-            _Emden.Rudder = 0;
-            if (Core.Input.Keyboard.IsKeyDown(Keys.Left) || Core.Input.Keyboard.IsKeyDown(Keys.A))
-            {
-                --_Emden.Rudder;
-            }
-
-            if (Core.Input.Keyboard.IsKeyDown(Keys.Right) || Core.Input.Keyboard.IsKeyDown(Keys.D))
-            {
-                ++_Emden.Rudder;
-            }
-
-            Vector2 target = Core.Input.Mouse.Position.ToVector2() -
-                             new Vector2(Core.GraphicsDevice.Viewport.Width * 0.5f,
-                                 Core.GraphicsDevice.Viewport.Height * 0.5f) +
-                             _Emden.Position;
-
-
-            _Emden.SetTarget(target);
-
-            if (Core.Input.Mouse.WasButtonJustPressed(MouseButton.Left))
-            {
-                //Check if the mouse is within the screen
-
-                var mousePosition = Core.Input.Mouse.Position.ToVector2();
-                if (mousePosition.X < Core.GraphicsDevice.Viewport.Width &&
-                    mousePosition.Y < Core.GraphicsDevice.Viewport.Height && mousePosition.X > 0 && mousePosition.Y > 0)
-                {
-                    _Emden.Shoot(_smoke,_smokeTemplate,_shells);
-
-                    //TEMP, spawn a shell at the mouse
-                    //_shells.AddLast(new Shell(_shellTexture, target, Vector2.Zero, 1));
-                }
-
-            }
+            ship.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
+            ship.Update(gameTime,_smoke,_smokeTemplate,_shells,_Emden,_EnemyShips);
+            ship.SpawnFoam(_foam,_foamTemplate,gameTime);
+            
+            if (ship.IsSunk)
+                shipsToRemove.Add(ship);
         }
         
-        
+        foreach (Ship ship in shipsToRemove)
+            _EnemyShips.Remove(ship);
 
         List<Shell> shellsToRemove=new();
 
@@ -312,16 +289,6 @@ public class LevelScene : Scene
         _engineSoundInstance.Volume = MathF.Abs(_Emden.PowerLevel) * 0.25f;
         _engineSoundInstance.Pitch = (MathF.Abs(_Emden.PowerLevel)-1) * 0.25f;
         
-        _Emden.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
-        _Emden.Update(gameTime);
-        _Emden.SpawnFoam(_foam,_foamTemplate,gameTime);
-
-        foreach (Ship ship in _EnemyShips)
-        {
-            ship.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
-            ship.Update(gameTime);
-            ship.SpawnFoam(_foam,_foamTemplate,gameTime);
-        }
         
         
         //Update particles, and remove dead once
