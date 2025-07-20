@@ -76,12 +76,19 @@ public class LevelScene : Scene
     private LinkedList<Shell> _shells;
     
     
+    /// <summary>
+    /// Torpedoes in the water
+    /// </summary>
+    private LinkedList<Torpedo> _torpedoes;
+    
+    
     public override void Initialize()
     {
         _smoke = new LinkedList<Particle>();
         _foam = new LinkedList<Particle>();
         _explosions=new LinkedList<Particle>();
         _shells = new LinkedList<Shell>();
+        _torpedoes=new LinkedList<Torpedo>();
         _EnemyShips = new LinkedList<Ship>();
         
         // LoadContent is called during base.Initialize().
@@ -99,16 +106,17 @@ public class LevelScene : Scene
 
     public override void LoadContent()
     {
-
-        var aimingDot = Content.Load<Texture2D>("images/debugDot");
         
+        
+        var aimingDot = Content.Load<Texture2D>("images/debugDot");
+        var torpedoDot= Content.Load<Texture2D>("images/TorpedoAim");
         
 
         _EmdenCompartments=Content.Load<Texture2D>("images/EmdenCompartments");
 
         _shellExplosionSound = Content.Load<SoundEffect>("Audio/621002__samsterbirdies__cannon-explosion-sound-3");
         
-        SoundEffect CannonSound = Content.Load<SoundEffect>("Audio/184650__isaac200000__cannon1");
+        SoundEffect cannonSound = Content.Load<SoundEffect>("Audio/184650__isaac200000__cannon1");
         _splashSound = Content.Load<SoundEffect>("Audio/519008__sheyvan__water-explosion");
         _engineSound = Content.Load<SoundEffect>("Audio/594215__steaq__big-steam-engine-perfect-loop-24bit-flac");
         _engineSoundInstance=Core.Audio.PlaySoundEffect(_engineSound,0f,0,0,true);
@@ -178,7 +186,7 @@ public class LevelScene : Scene
                         }
                         else
                         {
-                            turretType = new Turret(Content.Load<Texture2D>("images/"+model),aimingDot,CannonSound ,float.Parse(turret.Attribute("ReloadTime")?.Value ?? "4"),new Vector2(float.Parse(turret.Attribute("OriginX")?.Value ?? "0"),float.Parse(turret.Attribute("OriginY")?.Value ?? "0")));
+                            turretType = new Turret(Content.Load<Texture2D>("images/"+model),aimingDot,cannonSound ,float.Parse(turret.Attribute("ReloadTime")?.Value ?? "4"),new Vector2(float.Parse(turret.Attribute("OriginX")?.Value ?? "0"),float.Parse(turret.Attribute("OriginY")?.Value ?? "0")));
                             //Save for later re-usage
                             turrets[model] = turretType;
                             
@@ -201,7 +209,9 @@ public class LevelScene : Scene
                     int lengthCompartments = int.Parse(ship.Attribute("LengthCompartments")?.Value ?? "1");
                     int sinkFrames = int.Parse(ship.Attribute("SinkFrames")?.Value ?? "1");
                     int compartmentMaxDamage = int.Parse(ship.Attribute("CompartmentMaxDamage")?.Value ?? "1");
-                    ships.Add(Class ,new Ship(shipTexture,_shellTexture,directionTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction,lengthCompartments,sinkFrames,compartmentMaxDamage,new Captain()));
+                    int nTorpedoes= int.Parse(ship.Attribute("NTorpedoes")?.Value ?? "0");
+                    int torpedoSpread= int.Parse(ship.Attribute("torpedoSpread")?.Value ?? "1");
+                    ships.Add(Class ,new Ship(shipTexture,_shellTexture,torpedoDot,directionTexture,funnelLocations,shipTurrets,maxThrust,rudderTorquePerSpeed,turnFriction,portFriction,forwardFriction,lengthCompartments,sinkFrames,compartmentMaxDamage,nTorpedoes,torpedoSpread,new Captain()));
                 }
             }
         }
@@ -209,11 +219,11 @@ public class LevelScene : Scene
         //Make sure Von Mücke (The player) is in charge of Emden
         _Emden = ships["Emden"].Clone(new VonMucke(),Vector2.Zero, 0);
         
-        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(400,200),0));
-        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(200,200),0));
-        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(0,200),0));
-        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(600,200),0));
-        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(0),new Vector2(800,200),0));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(1.5f),new Vector2(400,200),1.5f));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(1.5f),new Vector2(200,200),1.5f));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(1.5f),new Vector2(0,200),1.5f));
+        _EnemyShips.AddLast(ships["libertyship"].Clone(new MerchantCaptain(1.5f),new Vector2(600,200),1.5f));
+        _EnemyShips.AddLast(ships["destroyer"].Clone(new MerchantCaptain(1.5f),new Vector2(800,200),1.5f));
         
         _powerIndicatorAngle = (_Emden.PowerLevel + 2) * 0.16f * Single.Pi * 0.5f;
         
@@ -225,7 +235,7 @@ public class LevelScene : Scene
     public override void Update(GameTime gameTime)
     {
         
-        _Emden.Update(gameTime,_smoke,_smokeTemplate,_shells,_Emden,_EnemyShips);
+        _Emden.Update(gameTime,_smoke,_smokeTemplate,_shells,_torpedoes,_Emden,_EnemyShips);
         _Emden.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
         _Emden.SpawnFoam(_foam,_foamTemplate,gameTime);
         
@@ -235,7 +245,7 @@ public class LevelScene : Scene
         foreach (Ship ship in _EnemyShips)
         {
             ship.SpawnSmoke(_smoke,_smokeTemplate,gameTime);
-            ship.Update(gameTime,_smoke,_smokeTemplate,_shells,_Emden,_EnemyShips);
+            ship.Update(gameTime,_smoke,_smokeTemplate,_shells,_torpedoes,_Emden,_EnemyShips);
             ship.SpawnFoam(_foam,_foamTemplate,gameTime);
             
             if (ship.IsSunk)
@@ -246,13 +256,49 @@ public class LevelScene : Scene
             _EnemyShips.Remove(ship);
 
         List<Shell> shellsToRemove=new();
-
+        
+        List<Torpedo> torpedoesToRemove = new();
         foreach (var shell in _shells)
         {
             shell.Update(gameTime);
             
             if (shell.IsSplash)
                 shellsToRemove.Add(shell);
+        }
+
+        foreach (var torpedo in _torpedoes)
+        {
+            torpedo.Update(gameTime);
+            
+            if (torpedo.ShouldSpawnFoam)
+                _foam.AddLast(new Particle(_foamTemplate.Source,torpedo.Position,_foamTemplate.Nframes,_foamTemplate.LifeTime, _foamTemplate.Friction,_foamTemplate.Wind,Vector2.Zero));
+            
+            //Test hit every frame for torpedoes
+            bool hit = _Emden.HitTest(torpedo);
+            foreach (Ship ship in _EnemyShips)
+            {
+                hit |= ship.HitTest(torpedo);
+            }
+
+            if (hit)
+            {
+                Core.Audio.PlaySoundEffect(_shellExplosionSound);
+                _explosions.AddLast(new Particle(_explosionTemplate.Source, torpedo.Position, _explosionTemplate.Nframes,
+                    _explosionTemplate.LifeTime, _explosionTemplate.Friction, Vector2.Zero, Vector2.Zero));
+                torpedoesToRemove .Add(torpedo);
+            }
+            else
+            if (torpedo.IsSplash)
+            {
+                Core.Audio.PlaySoundEffect(_splashSound);
+                torpedoesToRemove .Add(torpedo);
+            }
+        }
+
+        foreach (var torpedo in torpedoesToRemove)
+        {
+            
+            _torpedoes.Remove(torpedo);
         }
 
         foreach (var shell in shellsToRemove)
@@ -274,7 +320,7 @@ public class LevelScene : Scene
             }
             else
             {
-                //Splashed down in wate
+                //Splashed down in water
                 _foam.AddLast(new Particle(_foamTemplate.Source, shell.Position, _foamTemplate.Nframes,
                     _foamTemplate.LifeTime, _foamTemplate.Friction, Vector2.Zero, Vector2.Zero));
             
@@ -484,7 +530,7 @@ public class LevelScene : Scene
             new Vector2(Core.GraphicsDevice.Viewport.Width-20-_EmdenCompartments.Width,_EmdenCompartments.Height+50) 
             , Color.Black, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
  
-        Core.SpriteBatch.DrawString(_font, $"Capsizing: {_Emden.UnbalancedCompartments}/{(_Emden.LengthCompartments)/2+1}", 
+        Core.SpriteBatch.DrawString(_font, $"Torpedoes: {_Emden.NTorpedoes}", 
             new Vector2(Core.GraphicsDevice.Viewport.Width-20-_EmdenCompartments.Width,_EmdenCompartments.Height+80) 
             , Color.Black, 0.0f, Vector2.Zero, 1.0f, SpriteEffects.None, 1.0f);
         

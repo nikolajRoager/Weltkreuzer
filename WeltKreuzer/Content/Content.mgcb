@@ -100,6 +100,18 @@
 /processorParam:TextureFormat=Color
 /build:images/debugDot.png
 
+#begin images/destroyer.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:images/destroyer.png
+
 #begin images/directionMarker.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -231,6 +243,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:images/SpeedHandle.png
+
+#begin images/TorpedoAim.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:images/TorpedoAim.png
 
 #begin images/Wheel.png
 /importer:TextureImporter

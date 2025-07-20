@@ -19,10 +19,20 @@ public class MerchantCaptain : Captain
     /// Current target, away from danger at all times
     /// </summary>
     public float ThisTargetRotation;
+
+    
+    /// <summary>
+    /// We tend to follow the nearest ship, in front of me
+    /// </summary>
+    public Ship Leader;
+
+    
+    public float PreferedDistance;
     
     public MerchantCaptain(float targetRotation) : base()
     {
         TargetRotation = targetRotation;
+        PreferedDistance = 300;
     }
 
     public override Captain Clone()
@@ -32,6 +42,22 @@ public class MerchantCaptain : Captain
 
     public override void Control()
     {
+        //Find the leader, they are in front of me, and they are the nearest
+        Leader = null;
+        float nearestD2 = Single.PositiveInfinity;
+        foreach (Ship ship in EnemyShips)
+        {
+            var dir = ship.Position - MyShip.Position;           
+            float D2 = dir.X*dir.X+dir.Y*dir.Y;
+            if (Vector2.Dot(dir, MyShip.Forward) > 0 && D2<nearestD2)
+            {
+                nearestD2 = D2;
+                Leader = ship;
+            }
+        }
+        
+        
+        
         ThisTargetRotation = TargetRotation;
 
         bool isPanicked = false;
@@ -47,7 +73,32 @@ public class MerchantCaptain : Captain
             MyShip.ShallShoot = true;
         }
         else
+        {
             MyShip.ShallShoot = false;
+            //Follow the leader; they surely know where we are going
+            if (Leader != null)
+            {
+                var dir = Leader.Position-MyShip.Position;
+
+                float dist = MathF.Sqrt(nearestD2);
+                if (dist > PreferedDistance)
+                {
+                    if (MyShip.PowerLevel <= Leader.PowerLevel)
+                        MyShip.AddPower(true);
+                    else
+                        MyShip.AddPower(false);
+                }
+                else
+                {
+                    
+                    if (MyShip.PowerLevel >= Leader.PowerLevel)
+                        MyShip.AddPower(false);
+                    else
+                        MyShip.AddPower(true);
+                }
+                ThisTargetRotation =MathF.Atan2(dir.Y, dir.X);
+            }
+        }
 
 
         
@@ -70,7 +121,7 @@ public class MerchantCaptain : Captain
         //Increase power if there is a scary cruiser
         if (isPanicked)
             MyShip.AddPower(true);
-        else
+        else if (Leader == null)//If there is no leader, 
         {
             //Economical cruising speed
             if (MyShip.PowerLevel>2)
@@ -86,12 +137,31 @@ public class MerchantCaptain : Captain
             direction,
             shipPosition,
             null,
-            Color.White,
+            Color.Blue,
             ThisTargetRotation,
             new Vector2(direction.Width*0.5f,direction.Height*0.5f),
             1f,
             SpriteEffects.None,
             0.0f
         );
+        
+        //We tend to follow the nearest ship (smallest dist^2) in front of me (dot product betwixt direction and forward is positive)
+ //       foreach (Ship ship in EnemyShips)
+        if (Leader != null)
+        {
+            var dir = Leader.Position - MyShip.Position;           
+            spriteBatch.Draw(
+                direction,
+                shipPosition,
+                null,
+                Color.Green,
+                MathF.Atan2(dir.Y, dir.X),
+                new Vector2(direction.Width*0.5f,direction.Height*0.5f),
+                1f,
+                SpriteEffects.None,
+                0.0f
+            );
+        }
+        
     }
 }

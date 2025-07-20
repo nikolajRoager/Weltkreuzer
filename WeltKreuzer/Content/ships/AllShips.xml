@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ships>
-  <ship class="Emden" CompartmentMaxDamage="3" SinkFrames="5" MaxThrust="9.6" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1" compartmentsWidth="2" LengthCompartments="4">
+  <ship class="Emden" CompartmentMaxDamage="3" SinkFrames="5" MaxThrust="9.6" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1" compartmentsWidth="2" LengthCompartments="4" NTorpedoes="4" TorpedoSpread="1">
     <funnel X="-2" Y="0"/>
     <funnel X="10" Y="0"/>
     <funnel X="24" Y="0"/>
@@ -17,7 +17,10 @@
   </ship>
   <ship class="libertyship" CompartmentMaxDamage="1" SinkFrames="5" MaxThrust="4.0" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1" compartmentsWidth="2" LengthCompartments="2">
     <funnel X="5" Y="0"/>
-    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="-65" Y="0" maxRotation="4.641592653589793" minRotation="1.6415926535897931"/>
     <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="65" Y="0" maxRotation="1.5" minRotation="-1.5"/>
+  </ship>
+  <ship class="destroyer" CompartmentMaxDamage="1" SinkFrames="4" MaxThrust="14.0" RudderTorquePerSpeed="0.01" TurnFriction="1" PortFriction="1" ForwardFriction="0.1" compartmentsWidth="2" LengthCompartments="2">
+    <funnel X="5" Y="0"/>
+    <turret Model="105mm" OriginX="8" OriginY="8" ReloadTime="4"  X="20" Y="0" maxRotation="1.5" minRotation="-1.5"/>
   </ship>
 </ships>

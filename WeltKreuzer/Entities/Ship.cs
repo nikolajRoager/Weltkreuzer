@@ -26,6 +26,7 @@ public class Ship
     /// </summary>
     public int LengthCompartments;
     public int[,] CompartmentsDamage;
+
     
     
     /// <summary>
@@ -67,9 +68,9 @@ public class Ship
     
     
     /// <summary>
-    /// The ship is sinking or has sunk
+    /// The ship is sinking or has sunk, I decided against allowing capsizing, too much for the player to keep track off
     /// </summary>
-    public bool IsSinking => FloodedCompartments >= MaxFlooding || UnbalancedCompartments >= LengthCompartments/2+1;
+    public bool IsSinking => FloodedCompartments >= MaxFlooding;// || UnbalancedCompartments >= LengthCompartments/2+1;
     private bool _playingSinkingAnimation = false;
     
     
@@ -183,7 +184,14 @@ public class Ship
     
     //Shall the ship shoot this update cycle
     public bool ShallShoot { get; set; } = false;
-
+    
+    public bool ShallTorpedo { get; set; } = false;
+    
+    public int NTorpedoes;
+    public int TorpedoSpread;
+    
+    public Vector2 Target { get; set; }=Vector2.Zero;
+    
     public void Shoot(ICollection<Particle> smoke, ParticleTemplate smokeTemplate, ICollection<Shell> shells)
     {
         
@@ -260,9 +268,10 @@ public class Ship
         }
     }
 
-
+    
     public void SetTarget(Vector2 target)
     {
+        Target =target;
         foreach (var turret in Turrets)
         {
             turret.SetTarget(target,Position+turret.Position.X*Forward+turret.Position.Y*Port,Rotation);
@@ -270,9 +279,14 @@ public class Ship
     }
 
 
+    private Texture2D _torpedoAim;
 
-    public Ship(Texture2D texture, Texture2D shellTexture, Texture2D directionMarker, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction, int lengthCompartments, int sinkFrames, int compartmentMaxDamage, Captain myCaptain)
+    public Ship(Texture2D texture, Texture2D shellTexture, Texture2D torpedoAim, Texture2D directionMarker, List<Vector2> funnelLocations, List<Turret> turrets,float maxThrust,float rudderTorquePerSpeed,float turnFriction,float portFriction,float forwardFriction, int lengthCompartments, int sinkFrames, int compartmentMaxDamage, int nTorpedoes, int torpedoSpread, Captain myCaptain)
     {
+        NTorpedoes = nTorpedoes;
+        TorpedoSpread = torpedoSpread;
+        _torpedoAim=torpedoAim;
+        
         MyCaptain = myCaptain;
         myCaptain.TakeCommand(this);
         DirectionMarker = directionMarker;
@@ -330,13 +344,12 @@ public class Ship
         {
             clonedTurrets.Add(turret.Clone());
         }
-        var Out = new Ship(Texture,ShellTexture,DirectionMarker,FunnelLocations,clonedTurrets,MaxThrust,RudderTorquePerSpeed,TurnFriction,PortFriction,ForwardFriction,LengthCompartments,SinkFrames,CompartmentMaxDamage,newCaptain);
+        var Out = new Ship(Texture,ShellTexture,_torpedoAim,DirectionMarker,FunnelLocations,clonedTurrets,MaxThrust,RudderTorquePerSpeed,TurnFriction,PortFriction,ForwardFriction,LengthCompartments,SinkFrames,CompartmentMaxDamage,NTorpedoes,TorpedoSpread,newCaptain);
         Out.Position=position;
         Out.Rotation=rotation;
         
         return Out;
     }
-
     public bool HitTest(Shell shell)
     {
         var vecToShell = shell.Position - Position;
@@ -345,8 +358,8 @@ public class Ship
 
 
         if (distForward > -_rectangles[0].Width* 0.5f && distForward < _rectangles[0].Width* 0.5f
-                                                                    &&
-                                                                    distPort > -Texture.Height * 0.5f && distPort < Texture.Height * 0.5f
+                                                      &&
+                                                      distPort > -Texture.Height * 0.5f && distPort < Texture.Height * 0.5f
            )
         {
             //Test which compartment has been hit
@@ -368,17 +381,126 @@ public class Ship
         return false;
     }
 
-    public void Update(GameTime time,ICollection<Particle> smoke, ParticleTemplate smokeTemplate, ICollection<Shell> shells, Ship PlayerShip, IEnumerable<Ship> EnemyShips)
+
+    public bool HitTest(Torpedo Torp)
+    {
+        //No self torpedoing
+        if (Torp.Owner == this)
+            return false;
+        
+        var vecToShell = Torp.Position - Position;
+        float distForward = Vector2.Dot(vecToShell, Forward);
+        float distPort = Vector2.Dot(vecToShell, Port);
+
+
+        if (distForward > -_rectangles[0].Width* 0.5f && distForward < _rectangles[0].Width* 0.5f
+                                                                    &&
+                                                                    distPort > -Texture.Height * 0.5f && distPort < Texture.Height * 0.5f
+           )
+        {
+            //Test which compartment has been hit
+            int nCompartmentLength=(int)(distForward + _rectangles[0].Width* 0.5f) * LengthCompartments / _rectangles[0].Width;
+            if (distPort > 0) //Starboard hit
+            {
+                CompartmentsDamage[nCompartmentLength, 1] = CompartmentMaxDamage;
+                CompartmentsDamage[nCompartmentLength, 0]= Math.Min(CompartmentMaxDamage,
+                    CompartmentsDamage[nCompartmentLength, 0]+ 1);
+
+                if (nCompartmentLength > 0)
+                {
+                    CompartmentsDamage[nCompartmentLength-1, 1]= Math.Min(CompartmentMaxDamage,
+                        CompartmentsDamage[nCompartmentLength-1, 1]+ 1);
+                }
+                if (nCompartmentLength+1 < LengthCompartments)
+                {
+                    CompartmentsDamage[nCompartmentLength+1, 1]= Math.Min(CompartmentMaxDamage,
+                        CompartmentsDamage[nCompartmentLength+1, 1]+ 1);
+                }
+            }
+            else
+            {
+                CompartmentsDamage[nCompartmentLength, 0] = CompartmentMaxDamage;
+                CompartmentsDamage[nCompartmentLength, 1]= Math.Min(CompartmentMaxDamage,
+                    CompartmentsDamage[nCompartmentLength, 1]+ 1);
+                if (nCompartmentLength > 0)
+                {
+                    CompartmentsDamage[nCompartmentLength-1, 0]= Math.Min(CompartmentMaxDamage,
+                        CompartmentsDamage[nCompartmentLength-1, 0]+ 1);
+                }
+                if (nCompartmentLength+1 < LengthCompartments)
+                {
+                    CompartmentsDamage[nCompartmentLength+1, 0]= Math.Min(CompartmentMaxDamage,
+                        CompartmentsDamage[nCompartmentLength+1, 0]+ 1);
+                }
+            }
+            
+            return true;
+        }
+        
+        return false;
+    }
+
+    public void Update(GameTime time,ICollection<Particle> smoke, ParticleTemplate smokeTemplate, ICollection<Shell> shells, ICollection<Torpedo> torpedoes, Ship playerShip, IEnumerable<Ship> enemyShips)
     {
         float dt = (float)time.ElapsedGameTime.TotalSeconds;
         
-        MyCaptain.ViewShips(PlayerShip,EnemyShips);
+        MyCaptain.ViewShips(playerShip,enemyShips);
         MyCaptain.Control();
 
         if (ShallShoot)
         {
             ShallShoot=false;
             Shoot(smoke,smokeTemplate,shells);
+        }
+        if (ShallTorpedo && NTorpedoes>0)
+        {
+            ShallTorpedo=false;
+
+            var dir = Vector2.Normalize(Target - Position);
+            //Torpedoes are only permitted within +-45% of port or in other words
+            
+            float portDir = Vector2.Dot(dir, Port);
+            float forwardDir = Vector2.Dot(dir, Forward);
+
+            if (MathF.Abs(forwardDir) < MathF.Abs(portDir))
+            {
+                float ang;
+                //Custom spread patterns for each spread type
+                switch (Math.Min(TorpedoSpread,NTorpedoes))
+                {
+                    case 0:
+                        break;
+                    default:
+                    case 1:
+                        torpedoes.Add(new Torpedo(this,Position, dir*136, 10)); 
+                        break;
+                    case 2:
+                        //Torpedoes offset by roughly 5 degrees (0.1 radians)
+                        ang = MathF.Atan2(dir.Y, dir.X);
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang+0.05f),MathF.Sin(ang+0.05f))*136, 10)); 
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang-0.05f),MathF.Sin(ang-0.05f))*136, 10));
+                        break;
+                    case 3:
+                        //1 torpedo on target, flanked by two at 5 degrees off
+                        ang = MathF.Atan2(dir.Y, dir.X);
+                        torpedoes.Add(new Torpedo(this,Position, dir*136, 10)); 
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang+0.1f),MathF.Sin(ang+0.1f))*136, 10)); 
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang-0.1f),MathF.Sin(ang-0.1f))*136, 10));
+                        break;
+                    case 4:
+                        //A total spread of 10 degrees
+                        ang = MathF.Atan2(dir.Y, dir.X);
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang+0.33f),MathF.Sin(ang+0.33f))*136, 10)); 
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang-0.33f),MathF.Sin(ang-0.33f))*136, 10));
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang+0.1f),MathF.Sin(ang+0.1f))*136, 10)); 
+                        torpedoes.Add(new Torpedo(this,Position, new Vector2(MathF.Cos(ang-0.1f),MathF.Sin(ang-0.1f))*136, 10));
+                        break;
+                }
+
+                NTorpedoes-=Math.Min(TorpedoSpread, NTorpedoes);
+
+            }
+            
         }
         
         
@@ -550,7 +672,31 @@ public class Ship
             
             //My captain may have some debug drawing functions
             MyCaptain.Draw(spriteBatch,DirectionMarker,Position-cameraPosition);
-            
+
+            //Mark torpedo
+            if (NTorpedoes > 0)
+            {
+                var dir = Vector2.Normalize(Target - Position);
+                //Torpedoes are only permitted within +-45% of port or in other words
+
+                float portDir = Vector2.Dot(dir, Port);
+                float forwardDir = Vector2.Dot(dir, Forward);
+
+                if (MathF.Abs(forwardDir) < MathF.Abs(portDir))
+                {
+                    spriteBatch.Draw(
+                        _torpedoAim,
+                        Target-cameraPosition,
+                        null,
+                        new Color((byte)255,(byte)255,(byte)255,(byte)255),
+                        0,
+                        new Vector2(_torpedoAim.Width/2f, _torpedoAim.Height/2f),
+                        1f,
+                        SpriteEffects.None,
+                        0.0f
+                    );
+                }
+            }
         }
         else if (SinkingTimer > 0)
         {

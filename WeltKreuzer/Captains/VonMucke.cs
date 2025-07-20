@@ -1,6 +1,8 @@
+using System;
 using MatrosEngine;
 using MatrosEngine.Input;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 
 namespace WeltKreuzer.Entities;
@@ -12,7 +14,8 @@ public class VonMucke : Captain
 {
     public VonMucke() : base()
     {
-        
+        //We can spot enemy smoke from quite a distance
+        VisionDistance = 2500;
     }
 
     public override void Control()
@@ -61,7 +64,17 @@ public class VonMucke : Captain
                 {
                     MyShip.ShallShoot = true;
                 }
+            }
 
+            if (Core.Input.Mouse.WasButtonJustPressed(MouseButton.Right))
+            {
+                
+                var mousePosition = Core.Input.Mouse.Position.ToVector2();
+                if (mousePosition.X < Core.GraphicsDevice.Viewport.Width &&
+                    mousePosition.Y < Core.GraphicsDevice.Viewport.Height && mousePosition.X > 0 && mousePosition.Y > 0)
+                {
+                    MyShip.ShallTorpedo= true;
+                }
             }
             
         }
@@ -71,4 +84,24 @@ public class VonMucke : Captain
     {
         return new VonMucke();
     }
+    
+    public override void Draw(SpriteBatch spriteBatch,Texture2D direction,Vector2 shipPosition)
+    {
+        foreach (Ship ship in EnemyShips)
+        {
+            var dir = ship.Position - MyShip.Position;           
+            spriteBatch.Draw(
+                direction,
+                shipPosition,
+                null,
+                Color.Red,
+                MathF.Atan2(dir.Y, dir.X),
+                new Vector2(direction.Width*0.5f,direction.Height*0.5f),
+                1f,
+                SpriteEffects.None,
+                0.0f
+            );
+        }
+    }
+    
 }

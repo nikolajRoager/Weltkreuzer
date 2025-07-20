@@ -21,6 +21,8 @@ public  class Captain
     /// Directions and distance to the scary player
     /// </summary>
     public Ship PlayerShip=null;
+
+    public List<Ship> EnemyShips;
     
     public float VisionDistance { get; set; }
     
@@ -32,10 +34,16 @@ public  class Captain
 
     public void ViewShips(Ship player, IEnumerable<Ship> foes)
     {
+        EnemyShips = new();
         if (Vector2.Distance(player.Position, MyShip.Position) <= VisionDistance)
             PlayerShip = player;
         else
             PlayerShip = null;//I can't see them, I guess I am safe
+        
+        foreach (var foe in foes)
+            if (Vector2.Distance(foe.Position, MyShip.Position) <= VisionDistance)
+                EnemyShips.Add(foe);
+            
     }
 
     public virtual void Draw(SpriteBatch spriteBatch,Texture2D direction,Vector2 ShipPosition)
